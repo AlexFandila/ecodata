@@ -4,17 +4,19 @@ Trabajar una fase cada vez, y dentro de cada fase, una tarea cada vez. Marcar ca
 
 ## Fase 0 — Cimientos
 
-- [ ] `git init` + primer commit con esta documentación
+- [x] `git init` + primer commit con esta documentación
 - [x] Sandbox de Claude Code activado (`/sandbox`; en Arch instalar antes `bubblewrap` y `socat` — ver PRIMERA_SESION.md)
-- [ ] Monorepo pnpm workspaces: `apps/api`, `apps/web`, `packages/core`, `packages/shared` con esqueleto mínimo ("hola mundo" en api y web)
-- [ ] TypeScript estricto compartido (`tsconfig` base), Biome, Vitest configurados en la raíz
-- [ ] dependency-cruiser integrado en `pnpm lint`: prohibido importar internals de otros módulos, y `packages/core` no puede importar de `apps/*` (la regla 1 de CLAUDE.md como error de lint)
-- [ ] Hook pre-commit (simple-git-hooks): `pnpm lint` + `pnpm typecheck` + escaneo de IBANs (`ES\d{22}`) sobre los ficheros staged
-- [ ] `env.example` con las variables necesarias documentadas (el `.env` real nunca entra en git)
-- [ ] Scripts raíz: `pnpm dev`, `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm build`
-- [ ] Verificar que `.gitignore` cubre `data/`, `*.db` (incluidos `-wal` y `-shm`), `.env*`, `.dev/`
+- [x] Monorepo pnpm workspaces: `apps/api`, `apps/web`, `packages/core`, `packages/shared` con esqueleto mínimo ("hola mundo" en api y web)
+- [x] TypeScript estricto compartido (`tsconfig` base), Biome, Vitest configurados en la raíz
+- [x] dependency-cruiser integrado en `pnpm lint`: prohibido importar internals de otros módulos, y `packages/core` no puede importar de `apps/*` (la regla 1 de CLAUDE.md como error de lint)
+- [ ] Hook pre-commit (simple-git-hooks): `pnpm lint` + `pnpm typecheck` + escaneo de IBANs (`ES\d{22}`) sobre los ficheros staged — script escrito y verificado a mano; **falta instalarlo** ejecutando `pnpm install` fuera del sandbox de Claude Code (`.git/hooks` es de solo lectura dentro)
+- [x] `env.example` con las variables necesarias documentadas (el `.env` real nunca entra en git)
+- [x] Scripts raíz: `pnpm dev`, `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm build`
+- [x] Verificar que `.gitignore` cubre `data/`, `*.db` (incluidos `-wal` y `-shm`), `.env*`, `.dev/`
 
 **Aceptación**: `pnpm dev` levanta api y web; `pnpm test`, `pnpm typecheck`, `pnpm lint` y `pnpm build` pasan en limpio; y un commit de prueba con un IBAN sintético en un fichero staged es rechazado por el hook.
+
+**Decisión de la fase**: TypeScript se queda en la línea 6.x. La 7 (el compilador nativo) ya es estable, pero dependency-cruiser todavía no la soporta y cruzaría 0 módulos, dejando vacías las reglas de frontera del ADR-006. Revisar cuando dependency-cruiser publique soporte para `typescript@>=7`.
 
 ## Fase 1 — Núcleo usable (MVP)
 
