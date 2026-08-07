@@ -13,7 +13,11 @@
     "test": "vitest run",
     "typecheck": "pnpm -r typecheck",
     "lint": "biome check . && depcruise --config .dependency-cruiser.cjs apps packages",
-    "format": "biome check --write ."
+    "format": "biome check --write .",
+    "prepare": "simple-git-hooks"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "node scripts/precommit.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.7",
