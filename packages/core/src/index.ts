@@ -2,10 +2,12 @@
  * Dominio puro: sin IO (ni ficheros, ni red, ni base de datos). Recibe datos y
  * devuelve resultados. La regla la aplica dependency-cruiser en `pnpm lint`.
  *
- * De momento solo contiene el andamiaje de la Fase 0. El dominio real (Money,
- * matching de transferencias, motor de reglas, motor financiero) entra en las
- * fases 1 y 2.
+ * Ya vive aquí el módulo `money` (importes en céntimos y divisa). El resto del
+ * dominio —matching de transferencias, motor de reglas, motor financiero— entra
+ * en las fases 1 y 2.
  */
+
+export * from './money/index'
 
 export const CORE_VERSION = '0.0.0'
 

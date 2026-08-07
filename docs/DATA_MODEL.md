@@ -1,6 +1,6 @@
 # Modelo de datos
 
-Nombres de tablas y campos en inglés. Dinero siempre como enteros en céntimos + divisa ISO 4217 (regla 3 de CLAUDE.md).
+Nombres de tablas y campos en inglés. Dinero siempre como enteros en céntimos + divisa ISO 4217 (regla 3 de CLAUDE.md). El tipo `Money` de `packages/core` es quien lo hace cumplir: operaciones, redondeo half-even y reparto sin pérdida de céntimos en ADR-008.
 
 ## Entidades
 
