@@ -1,0 +1,83 @@
+# Modelo de datos
+
+Nombres de tablas y campos en inglés. Dinero siempre como enteros en céntimos + divisa ISO 4217 (regla 3 de CLAUDE.md).
+
+## Entidades
+
+### accounts
+- `id`, `name` (p. ej. "Unicaja nómina"), `provider` (`unicaja` | `revolut` | `manual`)
+- `type` (`checking` | `savings` | `card`), `currency` (divisa principal), `iban` (opcional)
+- `is_own` (boolean, default true) — las cuentas propias participan en el matching de transferencias
+- `opening_balance_cents` (entero, default 0) — saldo justo antes del movimiento más antiguo importado; base del cálculo de saldo (invariante 6)
+
+### transactions
+- `id`, `account_id`, `booked_at` (fecha contable), `value_date` (opcional)
+- `amount_cents` (entero, negativo = cargo), `currency`
+- `counterparty` (texto normalizado), `description`
+- `category_id` (nullable), `transfer_id` (nullable — si forma parte de una transferencia interna)
+- `category_source` (`rule` | `manual` | `suggestion`; `null` si no hay categoría) — quién puso `category_id`; protege lo manual de la recategorización automática (invariante 7)
+- `deleted_at` (timestamp, nullable) — soft-delete; `null` = movimiento vivo (invariante 5)
+- `import_id`, `source_hash` (UNIQUE — clave de deduplicación), `raw` (JSON con la fila original tal cual)
+
+### transfers
+- `id`, `out_txn_id`, `in_txn_id` (cargo y abono enlazados)
+- `status`: `auto` (emparejada por heurística) | `confirmed` (validada por el usuario) | `manual` (creada a mano)
+- `matched_by` (texto: qué señales dispararon el emparejamiento, para depurar)
+
+### categories
+- `id`, `name`, `kind` (`expense` | `income` | `internal`), `parent_id` (opcional), `icon` (opcional)
+- Sembrar un árbol inicial razonable (vivienda, supermercado, restaurantes, transporte, suscripciones, salud, ocio, nómina, etc.) + la categoría del sistema `internal_transfer`.
+
+### rules
+- `id`, `priority` (menor = antes), `field` (`counterparty` | `description`), `match_type` (`contains` | `regex`)
+- `pattern`, `category_id`, `active`
+
+### goals
+- `id`, `name`, `type` (`house` | `car` | `emergency_fund` | `custom`)
+- `target_amount_cents`, `target_date` (opcional), `params` (JSON: entrada %, gastos e impuestos %, retorno esperado, inflación asumida, aportación inicial…)
+
+### imports
+- `id`, `source` (adaptador usado), `file_name`, `imported_at`, `stats` (JSON: filas leídas, insertadas, duplicadas, errores)
+
+### fx_rates
+- `date`, `base`, `quote`, `rate` — tipos de cambio de referencia del BCE. Solo para agregados; el importe original nunca se convierte destructivamente.
+
+### market_series
+- `series_id` (p. ej. `euribor_12m`, `hicp_ea`, `ipc_es`), `date`, `value` — caché local de BCE/BdE/INE.
+
+## Invariantes
+
+1. `source_hash` es único: reimportar el mismo fichero (o solapar CSV con Open Banking en Fase 4) no duplica movimientos. Hash sobre campos normalizados estables (cuenta + fecha + importe + contraparte + descripción), no sobre la fila cruda.
+2. Un movimiento pertenece como máximo a una transferencia interna.
+3. Movimientos con `transfer_id` ≠ null: categoría `internal_transfer`, **excluidos** de ingresos, gastos y presupuestos; **incluidos** en el saldo de su cuenta.
+4. `raw` nunca se modifica ni se borra: si un parser mejora, se puede re-normalizar desde ahí.
+5. Borrar un import nunca es un `DELETE` físico: marca `deleted_at` en sus movimientos. **Toda consulta —saldos, agregados, listados, tools MCP— excluye por defecto los movimientos con `deleted_at` ≠ null**; restaurar es volver a ponerlo a `null`. Si se borra una de las dos patas de una transferencia interna, la `transfer` se deshace: la otra pata queda con `transfer_id = null` y vuelve a ser candidata al matching.
+6. Saldo de una cuenta = `opening_balance_cents` + Σ `amount_cents` de sus movimientos no borrados. Las transferencias internas sí suman aquí (invariante 3); los borrados no (invariante 5).
+7. `category_source` manda sobre la automatización: las reglas y las recategorizaciones en bloque solo escriben donde `category_id` es null o `category_source = 'rule'`. Una categoría puesta a mano (`manual`) no se pisa jamás automáticamente.
+
+## Heurística de matching de transferencias internas
+
+Objetivo: detectar Unicaja → Revolut (y similares) sin intervención, con revisión posible.
+
+**Candidatos**: pares de movimientos donde (a) cuentas distintas con `is_own = true`, (b) `amount_cents` opuestos exactos y misma divisa, (c) diferencia de fechas ≤ 3 días, (d) ninguno pertenece ya a una transferencia.
+
+**Puntuación** (desempate si hay varios candidatos): +2 si `counterparty`/`description` contiene el nombre del otro proveedor o del titular ("REVOLUT", "UNICAJA", nombre del usuario); +1 si la diferencia de fechas es ≤ 1 día. Empate no resoluble → dejar sin emparejar y marcar para revisión.
+
+**Resultado**: crear `transfer` con `status = auto` y anotar señales en `matched_by`. El usuario puede confirmar, deshacer (los movimientos vuelven a ser normales) o emparejar manualmente desde la UI.
+
+**Casos borde conocidos**:
+- Recarga de Revolut con tarjeta: en Unicaja aparece como pago de tarjeta con otro formato; a menudo no cumple (b) o (d) limpiamente → emparejado manual + posibilidad de crear una regla que categorice como `internal_transfer`.
+- Transferencias parciales o divididas: fuera de alcance de la v1; se resuelven a mano.
+- Distinta divisa entre patas: fuera de alcance de la v1 (requeriría tolerancia con `fx_rates`).
+
+## Pipeline de categorización
+
+1. Al importar, aplicar `rules` activas por orden de `priority`; primera coincidencia gana y escribe `category_source = 'rule'`.
+2. Sin coincidencia → `category_id = null` y `category_source = null` (estado "sin categorizar", visible como bandeja de pendientes en la UI).
+3. Al categorizar a mano, `category_source = 'manual'`; ofrecer "crear regla a partir de este movimiento" (pre-rellenando `contains` sobre la contraparte).
+4. (Futuro, opcional) Sugerencias de categoría vía LLM para lo pendiente: se guardan con `category_source = 'suggestion'` y solo pasan a `'manual'` con confirmación explícita del usuario. Una sugerencia sin confirmar sigue contando como pendiente en la bandeja.
+5. Recategorizar en bloque re-ejecuta reglas solo sobre movimientos con `category_id` null o `category_source = 'rule'` (invariante 7).
+
+## Semilla de desarrollo
+
+`pnpm seed` puebla la base de dev (`apps/api/.dev/dev.db`) con: 2 cuentas (unicaja, revolut), 3 meses de movimientos sintéticos realistas (nómina, alquiler, supermercado, suscripciones…), varias transferencias internas emparejables y 2 objetivos de ejemplo. Los tests de matching y de reglas usan estos mismos generadores. Ningún dato real, nunca.

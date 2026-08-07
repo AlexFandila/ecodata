@@ -1,0 +1,49 @@
+# Dependencias y builds
+node_modules/
+dist/
+build/
+coverage/
+*.log
+
+# Secretos (el ejemplo versionado se llama env.example, sin punto)
+.env
+.env.*
+
+# Datos reales del usuario — NUNCA en git
+data/*
+!data/.gitkeep
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+.dev/
+
+# Sistema y local
+.DS_Store
+.claude/settings.local.json
+
+# Artefactos del sandbox de Claude Code: ficheros de 0 bytes propiedad de
+# `nobody` que el aislamiento monta sobre rutas denegadas. No son ficheros del
+# proyecto y no deben entrar en git. Si algún día creas de verdad alguno de los
+# de `.claude/`, borra su línea de aquí.
+.bash_profile
+.bashrc
+.gitconfig
+.gitmodules
+.mcp.json
+.profile
+.ripgreprc
+.zprofile
+.zshrc
+.idea
+.vscode
+.claude/agents
+.claude/hooks
+.claude/skills
+.claude/workflows
+.claude/routines
+.claude/output-styles
+.claude/launch.json
+.claude/loop.md
+.claude/scheduled_tasks.json
