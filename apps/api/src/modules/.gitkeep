@@ -1,0 +1,4 @@
+Un módulo por carpeta (ingest, ledger, categorize, goals, marketdata, advisor),
+cada uno con su index.ts público. Los demás módulos solo pueden importar ese
+index.ts o packages/shared: dependency-cruiser lo comprueba en `pnpm lint`.
+Ver docs/ARCHITECTURE.md.

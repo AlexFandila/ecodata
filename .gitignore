@@ -5,6 +5,11 @@ build/
 coverage/
 *.log
 
+# Store y caché locales de pnpm (solo se usan mientras el sandbox no permita
+# escribir en el store global de ~/.local/share/pnpm)
+.pnpm-store/
+.pnpm-cache/
+
 # Secretos (el ejemplo versionado se llama env.example, sin punto)
 .env
 .env.*
