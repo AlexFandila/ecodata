@@ -9,7 +9,7 @@ Trabajar una fase cada vez, y dentro de cada fase, una tarea cada vez. Marcar ca
 - [x] Monorepo pnpm workspaces: `apps/api`, `apps/web`, `packages/core`, `packages/shared` con esqueleto mínimo ("hola mundo" en api y web)
 - [x] TypeScript estricto compartido (`tsconfig` base), Biome, Vitest configurados en la raíz
 - [x] dependency-cruiser integrado en `pnpm lint`: prohibido importar internals de otros módulos, y `packages/core` no puede importar de `apps/*` (la regla 1 de CLAUDE.md como error de lint)
-- [ ] Hook pre-commit (simple-git-hooks): `pnpm lint` + `pnpm typecheck` + escaneo de IBANs (`ES\d{22}`) sobre los ficheros staged — script escrito y verificado a mano; **falta instalarlo** ejecutando `pnpm install` fuera del sandbox de Claude Code (`.git/hooks` es de solo lectura dentro)
+- [ ] Hook pre-commit versionado en `.githooks/` (ver ADR-007): `pnpm lint` + `pnpm typecheck` + escaneo de IBANs (`ES\d{22}`) sobre los ficheros staged — escrito y verificado a mano; **falta activarlo** con `pnpm hooks` en una terminal fuera de Claude Code (el sandbox tiene `.git/` en solo lectura)
 - [x] `env.example` con las variables necesarias documentadas (el `.env` real nunca entra en git)
 - [x] Scripts raíz: `pnpm dev`, `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm build`
 - [x] Verificar que `.gitignore` cubre `data/`, `*.db` (incluidos `-wal` y `-shm`), `.env*`, `.dev/`

@@ -1,0 +1,11 @@
+#!/usr/bin/env sh
+#
+# Hook pre-commit versionado. Git lo encuentra gracias a:
+#
+#   git config core.hooksPath .githooks
+#
+# Se ejecuta una vez por clon. A diferencia de un hook generado en .git/hooks,
+# este fichero vive en el repo: se revisa en los diffs y no depende de que una
+# instalación de dependencias haya tenido trabajo que hacer. Ver ADR-007.
+set -e
+exec node scripts/precommit.mjs

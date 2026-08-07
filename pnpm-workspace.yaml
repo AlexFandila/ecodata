@@ -7,8 +7,6 @@ packages:
 allowBuilds:
   # Enlaza el binario nativo del compilador que usan Vite, Vitest y tsup.
   esbuild: true
-  # Instala el hook pre-commit en .git/hooks.
-  simple-git-hooks: true
 
 # pnpm rechaza por defecto versiones publicadas hace muy poco (ventana de
 # cuarentena frente a paquetes comprometidos). Estas tres se excluyen a
