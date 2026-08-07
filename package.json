@@ -12,7 +12,7 @@
     "build": "pnpm -r build",
     "test": "vitest run",
     "typecheck": "pnpm -r typecheck",
-    "lint": "biome check .",
+    "lint": "biome check . && depcruise --config .dependency-cruiser.cjs apps packages",
     "format": "biome check --write ."
   },
   "devDependencies": {
