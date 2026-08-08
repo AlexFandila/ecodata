@@ -16,7 +16,7 @@ finanzas-app/
 │   ├── api/                  # Hono + Drizzle + SQLite
 │   │   └── src/
 │   │       ├── modules/
-│   │       │   ├── ingest/      # importación y normalización (adaptadores CSV, luego Open Banking)
+│   │       │   ├── ingest/      # importación y normalización (adaptadores de fichero, luego Open Banking)
 │   │       │   ├── ledger/      # cuentas, movimientos, transferencias internas, saldos
 │   │       │   ├── categorize/  # categorías y motor de reglas
 │   │       │   ├── goals/       # objetivos y proyecciones (llama a core/finance)
@@ -59,12 +59,14 @@ Convenciones comunes a todos los contratos (ADR-009):
 
 ### Ingesta (`ingest`)
 
-Puerto: `TransactionSource` — dado un input, devuelve `NormalizedTransaction[]` (esquema en shared).
+Puerto: `TransactionSource` — dado un input, devuelve `NormalizedTransaction[]` más los errores por fila que no impidieron leer el resto (esquemas en shared). Recibe **bytes**, no texto: el encoding es propiedad del formato, así que lo decide el adaptador y no la capa HTTP. La entrada es genérica (`TransactionSource<TInput = Uint8Array>`) porque el adaptador de la Fase 4 recibirá JSON.
 
 Adaptadores previstos, en orden:
-1. `UnicajaCsvAdapter` (Fase 1) — export de la web de Unicaja.
+1. `Norma43Adapter` (Fase 1) — cuaderno 43 de la AEB, que es lo que exporta Unicaja. Al ser un estándar, sirve para cualquier banco español que lo emita: los literales de `IMPORT_SOURCES` nombran el formato, no el banco. Ver ADR-010.
 2. `RevolutCsvAdapter` (Fase 1) — export CSV de la app de Revolut (multidivisa).
 3. `EnableBankingAdapter` (Fase 4) — Open Banking automático. Ver ADR-004.
+
+Un fichero mal formado, o cuyos totales no cuadran con lo leído, es un error del fichero y aborta la importación. Una fila suelta ilegible no: se salta y se reporta, para que un extracto con tres apuntes raros importe los otros doscientos.
 
 El pipeline común (normalizar → hash → deduplicar → persistir → categorizar → emparejar transferencias) es único e independiente del adaptador.
 

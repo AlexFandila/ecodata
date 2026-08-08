@@ -23,13 +23,13 @@ Trabajar una fase cada vez, y dentro de cada fase, una tarea cada vez. Marcar ca
 - [x] `packages/core`: tipo `Money` (céntimos + divisa) con operaciones seguras y tests
 - [x] Esquema Drizzle + migraciones: `accounts`, `transactions`, `categories`, `rules`, `transfers`, `imports` (ver DATA_MODEL.md)
 - [x] `packages/shared`: esquema `NormalizedTransaction` y contratos HTTP de la Fase 1 (ingesta y movimientos; reglas, transferencias y dashboard entran con su tarea — ver ADR-009)
-- [ ] Puerto `TransactionSource` + `UnicajaCsvAdapter` con fixtures sintéticos y tests
+- [x] Puerto `TransactionSource` + `Norma43Adapter` con fixtures sintéticos y tests (Unicaja no exporta CSV sino Norma 43 de la AEB — ver ADR-010)
 - [ ] `RevolutCsvAdapter` (atención: multidivisa) con fixtures sintéticos y tests
 - [ ] Pipeline de importación: normalizar → hash → dedupe → persistir → log en `imports`
 - [ ] Matching de transferencias internas según DATA_MODEL.md (en `packages/core`, con tests de los casos borde)
 - [ ] Motor de reglas de categorización + semilla de categorías
 - [ ] `pnpm seed` con datos sintéticos de desarrollo
-- [ ] Web: subir CSV, elegir cuenta, ver resultado del import
+- [ ] Web: subir fichero, elegir cuenta, ver resultado del import
 - [ ] Web: lista de movimientos con filtros; bandeja "sin categorizar"; crear regla desde un movimiento
 - [ ] Web: revisión de transferencias internas (confirmar / deshacer / emparejar a mano)
 - [ ] Web: dashboard móvil — saldo por cuenta y total, gasto del mes por categoría, evolución ingresos/gastos (excluyendo transferencias internas)
