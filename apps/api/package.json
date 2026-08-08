@@ -6,16 +6,23 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsup",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx src/db/migrate-cli.ts",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
     "@finanzas/core": "workspace:*",
     "@finanzas/shared": "workspace:*",
     "@hono/node-server": "^2.1.0",
+    "better-sqlite3": "^13.0.3",
+    "drizzle-orm": "^0.45.2",
     "hono": "^4.13.1"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^22.0.0",
+    "drizzle-kit": "^0.31.10",
     "tsup": "^8.5.1",
     "tsx": "^4.23.10",
     "typescript": "^6.0.3"

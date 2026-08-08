@@ -25,7 +25,8 @@ Nombres de tablas y campos en inglés. Dinero siempre como enteros en céntimos 
 - `matched_by` (texto: qué señales dispararon el emparejamiento, para depurar)
 
 ### categories
-- `id`, `name`, `kind` (`expense` | `income` | `internal`), `parent_id` (opcional), `icon` (opcional)
+- `id`, `slug` (UNIQUE — identificador estable independiente del nombre visible: el código referencia `internal_transfer` por aquí, no por un id que la semilla podría renumerar)
+- `name`, `kind` (`expense` | `income` | `internal`), `parent_id` (opcional), `icon` (opcional)
 - Sembrar un árbol inicial razonable (vivienda, supermercado, restaurantes, transporte, suscripciones, salud, ocio, nómina, etc.) + la categoría del sistema `internal_transfer`.
 
 ### rules
@@ -54,6 +55,17 @@ Nombres de tablas y campos en inglés. Dinero siempre como enteros en céntimos 
 5. Borrar un import nunca es un `DELETE` físico: marca `deleted_at` en sus movimientos. **Toda consulta —saldos, agregados, listados, tools MCP— excluye por defecto los movimientos con `deleted_at` ≠ null**; restaurar es volver a ponerlo a `null`. Si se borra una de las dos patas de una transferencia interna, la `transfer` se deshace: la otra pata queda con `transfer_id = null` y vuelve a ser candidata al matching.
 6. Saldo de una cuenta = `opening_balance_cents` + Σ `amount_cents` de sus movimientos no borrados. Las transferencias internas sí suman aquí (invariante 3); los borrados no (invariante 5).
 7. `category_source` manda sobre la automatización: las reglas y las recategorizaciones en bloque solo escriben donde `category_id` es null o `category_source = 'rule'`. Una categoría puesta a mano (`manual`) no se pisa jamás automáticamente.
+
+## Notas de implementación (esquema Drizzle)
+
+El esquema vive en `apps/api/src/db/schema.ts` y las migraciones en `apps/api/drizzle/`. Cuatro decisiones que el modelo de arriba no fijaba:
+
+1. **Los invariantes los aplica la base**, no el código (mismo criterio que ADR-006). Los enums son `CHECK`, la deduplicación es un `UNIQUE` sobre `source_hash`, el invariante 2 son dos `UNIQUE` sobre las patas de `transfers` y el invariante 7 es un `CHECK` de coherencia entre `category_id` y `category_source`. Precio asumido: SQLite no sabe alterar un `CHECK`, así que cambiarlo obliga a reconstruir la tabla en la migración.
+2. **Fechas de calendario como TEXTO ISO** (`booked_at`, `value_date` → `'2026-03-15'`, validado con `CHECK ... GLOB`). Una fecha contable no tiene hora ni zona horaria; guardarla como epoch invita a desfases de un día. Los instantes de verdad (`deleted_at`, `imported_at`, `created_at`) sí van como entero epoch en milisegundos.
+3. **`transactions.transfer_id` no lleva clave foránea.** Declararla formaría un ciclo con `transfers.out_txn_id`/`in_txn_id` que obligaría a diferir la comprobación. Es un dato derivable de `transfers`, denormalizado por velocidad (casi toda consulta de gastos filtra por él, invariante 3); la coherencia la mantiene el módulo `ledger` y la cubren los tests.
+4. **IDs enteros autoincrementales.** Un único fichero SQLite en un solo servidor (ADR-003) no necesita UUIDs; la identidad entre importaciones la da `source_hash`, no el id.
+
+`PRAGMA foreign_keys` **no** viene activo por defecto en SQLite: se activa en `createDb()`, el único punto de apertura, para que las claves foráneas no sean decorativas.
 
 ## Heurística de matching de transferencias internas
 

@@ -21,7 +21,7 @@ Trabajar una fase cada vez, y dentro de cada fase, una tarea cada vez. Marcar ca
 ## Fase 1 — Núcleo usable (MVP)
 
 - [x] `packages/core`: tipo `Money` (céntimos + divisa) con operaciones seguras y tests
-- [ ] Esquema Drizzle + migraciones: `accounts`, `transactions`, `categories`, `rules`, `transfers`, `imports` (ver DATA_MODEL.md)
+- [x] Esquema Drizzle + migraciones: `accounts`, `transactions`, `categories`, `rules`, `transfers`, `imports` (ver DATA_MODEL.md)
 - [ ] `packages/shared`: esquema `NormalizedTransaction` y contratos HTTP de la Fase 1
 - [ ] Puerto `TransactionSource` + `UnicajaCsvAdapter` con fixtures sintéticos y tests
 - [ ] `RevolutCsvAdapter` (atención: multidivisa) con fixtures sintéticos y tests

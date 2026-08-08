@@ -5,6 +5,8 @@ packages:
 # Scripts de instalación permitidos. pnpm los bloquea por defecto (protección de
 # cadena de suministro): cada entrada aquí es una decisión consciente.
 allowBuilds:
+  # Compila (o descarga) el binding nativo de SQLite.
+  better-sqlite3: true
   # Enlaza el binario nativo del compilador que usan Vite, Vitest y tsup.
   esbuild: true
 
