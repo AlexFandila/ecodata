@@ -4,7 +4,10 @@ import { Hono } from 'hono'
 import type { Db } from '../db/client'
 import { errorJson } from './errors'
 import { createAccountsRoutes } from './routes/accounts'
+import { createCategoriesRoutes } from './routes/categories'
 import { createImportsRoutes } from './routes/imports'
+import { createRulesRoutes } from './routes/rules'
+import { createTransactionsRoutes } from './routes/transactions'
 
 /**
  * La base entra por parámetro y sin valor por defecto a propósito: un
@@ -29,7 +32,10 @@ export function createApp(db: Db) {
   })
 
   app.route('/accounts', createAccountsRoutes(db))
+  app.route('/categories', createCategoriesRoutes(db))
   app.route('/imports', createImportsRoutes(db))
+  app.route('/rules', createRulesRoutes(db))
+  app.route('/transactions', createTransactionsRoutes(db))
 
   return app
 }

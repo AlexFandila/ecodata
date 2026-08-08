@@ -3,7 +3,13 @@
  * bancarios reales.
  */
 import { describe, expect, it } from 'vitest'
-import { createRuleRequestSchema, ruleListResponseSchema, ruleSchema } from './rules'
+import {
+  categorizationOutcomeSchema,
+  createRuleRequestSchema,
+  createRuleResponseSchema,
+  ruleListResponseSchema,
+  ruleSchema,
+} from './rules'
 
 const regla = {
   id: 1,
@@ -105,5 +111,47 @@ describe('ruleListResponseSchema', () => {
 
   it('rechaza un array pelado', () => {
     expect(ruleListResponseSchema.safeParse([regla]).success).toBe(false)
+  })
+})
+
+describe('categorizationOutcomeSchema', () => {
+  const sinCambios = { scanned: 12, categorized: 0, cleared: 0, invalidRules: [] }
+
+  it('acepta una pasada que no ha cambiado nada', () => {
+    expect(categorizationOutcomeSchema.parse(sinCambios).scanned).toBe(12)
+  })
+
+  it('rechaza contadores negativos: son cuentas de cambios, no saldos', () => {
+    expect(categorizationOutcomeSchema.safeParse({ ...sinCambios, cleared: -1 }).success).toBe(
+      false,
+    )
+  })
+
+  it('reporta la regla saltada con su id y su mensaje, sin el motivo', () => {
+    const result = categorizationOutcomeSchema.parse({
+      ...sinCambios,
+      invalidRules: [{ ruleId: 3, message: 'Expresión regular no válida' }],
+    })
+
+    // El `reason` se queda en `packages/core`: sacarlo obligaría a duplicar
+    // `INVALID_RULE_REASONS` aquí, y el cliente no decide nada con él.
+    expect(result.invalidRules[0]).toEqual({ ruleId: 3, message: 'Expresión regular no válida' })
+    expect(result.invalidRules[0]).not.toHaveProperty('reason')
+  })
+})
+
+describe('createRuleResponseSchema', () => {
+  it('devuelve la regla y lo que ha hecho al aplicarla', () => {
+    const result = createRuleResponseSchema.parse({
+      rule: regla,
+      categorization: { scanned: 40, categorized: 9, cleared: 0, invalidRules: [] },
+    })
+
+    expect(result.rule.id).toBe(1)
+    expect(result.categorization.categorized).toBe(9)
+  })
+
+  it('exige las dos mitades: una regla sin efecto no es la respuesta de esta ruta', () => {
+    expect(createRuleResponseSchema.safeParse({ rule: regla }).success).toBe(false)
   })
 })

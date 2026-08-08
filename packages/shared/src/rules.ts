@@ -15,7 +15,7 @@
  */
 import { z } from 'zod'
 import { ruleFieldSchema, ruleMatchTypeSchema } from './enums'
-import { entityIdSchema } from './primitives'
+import { entityIdSchema, nonNegativeIntSchema } from './primitives'
 
 /** Un patrón más largo que esto no es una regla, es un extracto pegado. */
 const PATTERN_MAX_LENGTH = 200
@@ -110,3 +110,54 @@ export const ruleListResponseSchema = z.object({
 })
 
 export type RuleListResponse = z.infer<typeof ruleListResponseSchema>
+
+/**
+ * Una regla que el motor no pudo evaluar y se saltó (ADR-014 decisión 4).
+ *
+ * Va el `message` y **no** el `reason`. La lista de motivos
+ * (`INVALID_RULE_REASONS`) vive en `packages/core`, y sacarla por aquí
+ * obligaría a duplicarla en `shared` con un test que las atara, como pasa con
+ * las divisas (ADR-009 punto 2). No compensa: el cliente no decide nada con el
+ * motivo —no hay dos maneras de corregir una regla rota, se abre y se arregla—
+ * y el `message` ya viene escrito en español para leerse en pantalla. El
+ * `ruleId` sí va, porque es lo que permite llevar al usuario a la regla mala.
+ */
+export const invalidRuleSchema = z.object({
+  ruleId: entityIdSchema,
+  message: z.string(),
+})
+
+export type InvalidRuleReport = z.infer<typeof invalidRuleSchema>
+
+/**
+ * Qué ha cambiado una pasada de las reglas sobre los movimientos.
+ *
+ * Los tres contadores cuentan **cambios**, no estado: `categorized` son los que
+ * esta pasada ha etiquetado y `cleared` los que ha devuelto a la bandeja porque
+ * ya no casan con nada. Es lo que convierte "regla creada" en "la regla ha
+ * categorizado 9 movimientos", que es lo que el usuario venía a comprobar.
+ */
+export const categorizationOutcomeSchema = z.object({
+  /** Movimientos examinados: los que el invariante 7 deja tocar. */
+  scanned: nonNegativeIntSchema,
+  categorized: nonNegativeIntSchema,
+  cleared: nonNegativeIntSchema,
+  invalidRules: z.array(invalidRuleSchema),
+})
+
+export type CategorizationOutcome = z.infer<typeof categorizationOutcomeSchema>
+
+/**
+ * Respuesta de `POST /rules`: la regla creada y el efecto que ha tenido.
+ *
+ * Las dos cosas juntas porque la ruta hace las dos (ADR-014 punto 7): crear una
+ * regla que no se aplicara hasta que alguien pulsara otro botón dejaría el
+ * movimiento del que salió en la bandeja, que es justo de donde se le quería
+ * sacar.
+ */
+export const createRuleResponseSchema = z.object({
+  rule: ruleSchema,
+  categorization: categorizationOutcomeSchema,
+})
+
+export type CreateRuleResponse = z.infer<typeof createRuleResponseSchema>

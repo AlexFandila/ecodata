@@ -87,3 +87,28 @@ export const listTransactionsResponseSchema = z.object({
 })
 
 export type ListTransactionsResponse = z.infer<typeof listTransactionsResponseSchema>
+
+/**
+ * Categorizar un movimiento a mano (paso 3 del pipeline de categorización).
+ *
+ * Dos cosas que el cuerpo dice por lo que **no** lleva:
+ *
+ * - No lleva `categorySource`. Lo pone la API, siempre `'manual'`, porque un
+ *   cliente que pudiera declararse `'rule'` estaría saltándose el invariante 7
+ *   desde fuera: la protección de lo puesto a mano dejaría de valer en cuanto
+ *   alguien mandara la palabra correcta.
+ * - `categoryId` es nulable a propósito: poner `null` devuelve el movimiento a
+ *   la bandeja de pendientes. Sin eso, categorizar mal no tendría deshacer y la
+ *   única salida sería inventarse una categoría menos falsa que la anterior.
+ *
+ * La respuesta es el movimiento ya actualizado (`transactionSchema`), como
+ * `POST /accounts` devuelve la cuenta creada: quien lo pide se ahorra un `GET`
+ * para saber cómo quedó.
+ */
+export const updateTransactionCategoryRequestSchema = z.object({
+  categoryId: entityIdSchema.nullable(),
+})
+
+export type UpdateTransactionCategoryRequest = z.infer<
+  typeof updateTransactionCategoryRequestSchema
+>

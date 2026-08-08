@@ -18,6 +18,7 @@ import { Link } from 'react-router'
 import { accountsQueryKey, fetchAccounts } from '../api/accounts'
 import { ApiError } from '../api/client'
 import { createImport } from '../api/imports'
+import { Notice, NoticeDetails } from '../components/Notice'
 import { Screen } from '../components/Screen'
 
 /**
@@ -254,37 +255,10 @@ function ImportError({ error }: { error: Error }) {
     case 'validation_error':
       return (
         <Notice title="Los datos del formulario no son válidos" detail={error.message}>
-          <ul className="mt-2 flex flex-col gap-1 text-xs">
-            {error.details.map((detail) => (
-              <li key={detail.path}>
-                {detail.path}: {detail.message}
-              </li>
-            ))}
-          </ul>
+          <NoticeDetails details={error.details} />
         </Notice>
       )
     default:
       return <Notice title="La importación ha fallado" detail={error.message} />
   }
-}
-
-function Notice({
-  title,
-  detail,
-  hint,
-  children,
-}: {
-  title: string
-  detail: string
-  hint?: string
-  children?: React.ReactNode
-}) {
-  return (
-    <div role="alert" className="rounded-xl bg-rose-950/60 p-4 text-rose-200 text-sm">
-      <p className="font-medium">{title}</p>
-      <p className="mt-1 text-rose-300/90">{detail}</p>
-      {hint === undefined ? null : <p className="mt-2 text-rose-300/70 text-xs">{hint}</p>}
-      {children}
-    </div>
-  )
 }

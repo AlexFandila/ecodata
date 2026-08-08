@@ -95,7 +95,8 @@ Dos capas separadas a propósito:
 Estructura de `apps/web/src`:
 
 - `api/` — el único sitio que habla con la API. `client.ts` traduce el contrato de error de ADR-009 a un `ApiError` que **conserva el `code`**, para que las pantallas decidan por el código y no por el texto; los demás ficheros son un módulo por recurso y validan la respuesta con el esquema de `shared`.
-- `screens/` — una pantalla por ruta. `components/` — lo compartido entre pantallas (`AppLayout`, `TabBar`, `Screen`).
+- `screens/` — una pantalla por ruta. `components/` — lo compartido entre pantallas (`AppLayout`, `TabBar`, `Screen`, `Field`, `Notice`).
+- `format/` — pintar importes y fechas. Existe porque `apps/web` **no puede importar `packages/core`**, donde vive `formatMoney`: la regla `web-only-shared` se lo prohíbe. Las dos salidas obvias eran duplicar aquí la tabla de divisas o mudar `CURRENCIES` a `shared`, que es lo que ADR-009 avisa que exigiría revisar `shared-is-leaf` y merecería su propio ADR. No hace falta ninguna: **los decimales de cada divisa los sabe el propio `Intl`** (`resolvedOptions().maximumFractionDigits`), así que no hay lista que mantener ni decisión que revisar. Las fechas de calendario se trocean y se formatean en UTC, porque pasarlas por `new Date(iso)` y formatearlas en la zona local las retrasa un día al oeste de Greenwich —el desfase que DATA_MODEL.md evita guardándolas como texto—.
 - Tests de UI con Vitest en entorno jsdom y Testing Library, junto al componente (`X.test.tsx`), simulando `fetch`. No hay servidor de mentira: el cliente HTTP es un único punto de entrada y basta con `vi.stubGlobal`.
 
 `apps/web` solo conoce `packages/shared`: nunca importa de `apps/api` ni de `packages/core`. Lo aplica la regla `web-only-shared` de dependency-cruiser, no la buena voluntad.

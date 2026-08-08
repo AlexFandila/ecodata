@@ -4,6 +4,7 @@ import {
   listTransactionsResponseSchema,
   TRANSACTIONS_DEFAULT_LIMIT,
   transactionSchema,
+  updateTransactionCategoryRequestSchema,
 } from './transactions'
 
 /** Simula lo que entrega un router HTTP: la query string ya troceada, en texto. */
@@ -137,5 +138,31 @@ describe('listTransactionsResponseSchema', () => {
 
     expect(result.total).toBe(137)
     expect(result.transactions).toEqual([])
+  })
+})
+
+describe('updateTransactionCategoryRequestSchema', () => {
+  it('acepta una categoría', () => {
+    expect(updateTransactionCategoryRequestSchema.parse({ categoryId: 7 }).categoryId).toBe(7)
+  })
+
+  it('acepta `null`: quitar la categoría devuelve el movimiento a la bandeja', () => {
+    expect(updateTransactionCategoryRequestSchema.parse({ categoryId: null }).categoryId).toBeNull()
+  })
+
+  it('ignora un `categorySource` mandado por el cliente', () => {
+    // El origen lo pone la API, siempre `manual`. Si el cliente pudiera
+    // declararse `rule`, se saltaría el invariante 7 desde fuera.
+    const result = updateTransactionCategoryRequestSchema.parse({
+      categoryId: 7,
+      categorySource: 'rule',
+    })
+
+    expect(result).not.toHaveProperty('categorySource')
+  })
+
+  it('exige el campo: un cuerpo vacío no dice qué hacer', () => {
+    expect(updateTransactionCategoryRequestSchema.safeParse({}).success).toBe(false)
+    expect(updateTransactionCategoryRequestSchema.safeParse({ categoryId: 0 }).success).toBe(false)
   })
 })

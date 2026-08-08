@@ -16,6 +16,8 @@ import { type FormEvent, useId, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { accountsQueryKey, createAccount } from '../api/accounts'
 import { ApiError } from '../api/client'
+import { CONTROL_CLASS, Field } from '../components/Field'
+import { Notice, NoticeDetails } from '../components/Notice'
 import { Screen } from '../components/Screen'
 
 const PROVIDER_LABELS: Record<AccountProvider, string> = {
@@ -70,7 +72,7 @@ export function NewAccountScreen() {
             id={nameFieldId}
             value={name}
             onChange={(event) => setName(event.target.value)}
-            className="min-h-11 rounded-xl bg-slate-800 px-3 text-slate-100"
+            className={CONTROL_CLASS}
           />
         </Field>
 
@@ -79,7 +81,7 @@ export function NewAccountScreen() {
             id={providerFieldId}
             value={provider}
             onChange={(event) => setProvider(event.target.value as AccountProvider)}
-            className="min-h-11 rounded-xl bg-slate-800 px-3 text-slate-100"
+            className={CONTROL_CLASS}
           >
             {ACCOUNT_PROVIDERS.map((value) => (
               <option key={value} value={value}>
@@ -94,7 +96,7 @@ export function NewAccountScreen() {
             id={typeFieldId}
             value={type}
             onChange={(event) => setType(event.target.value as AccountType)}
-            className="min-h-11 rounded-xl bg-slate-800 px-3 text-slate-100"
+            className={CONTROL_CLASS}
           >
             {ACCOUNT_TYPES.map((value) => (
               <option key={value} value={value}>
@@ -109,7 +111,7 @@ export function NewAccountScreen() {
             id={currencyFieldId}
             value={currency}
             onChange={(event) => setCurrency(event.target.value as Currency)}
-            className="min-h-11 rounded-xl bg-slate-800 px-3 text-slate-100"
+            className={CONTROL_CLASS}
           >
             {CURRENCY_CODES.map((value) => (
               <option key={value} value={value}>
@@ -124,7 +126,7 @@ export function NewAccountScreen() {
             id={ibanFieldId}
             value={iban}
             onChange={(event) => setIban(event.target.value)}
-            className="min-h-11 rounded-xl bg-slate-800 px-3 text-slate-100"
+            className={CONTROL_CLASS}
           />
         </Field>
 
@@ -140,33 +142,10 @@ export function NewAccountScreen() {
   )
 }
 
-function Field({ id, label, children }: { id: string; label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex flex-col gap-1">
-      <label htmlFor={id} className="text-slate-400 text-sm">
-        {label}
-      </label>
-      {children}
-    </div>
-  )
-}
-
 function CreateError({ error }: { error: Error }) {
-  const details = error instanceof ApiError ? error.details : []
-
   return (
-    <div role="alert" className="rounded-xl bg-rose-950/60 p-4 text-rose-200 text-sm">
-      <p className="font-medium">No se ha podido crear la cuenta</p>
-      <p className="mt-1 text-rose-300/90">{error.message}</p>
-      {details.length > 0 ? (
-        <ul className="mt-2 flex flex-col gap-1 text-xs">
-          {details.map((detail) => (
-            <li key={detail.path}>
-              {detail.path}: {detail.message}
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </div>
+    <Notice title="No se ha podido crear la cuenta" detail={error.message}>
+      <NoticeDetails details={error instanceof ApiError ? error.details : []} />
+    </Notice>
   )
 }

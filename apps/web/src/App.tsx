@@ -10,6 +10,7 @@ import { NewAccountScreen } from './screens/NewAccountScreen'
 import { NotFoundScreen } from './screens/NotFoundScreen'
 import { SettingsScreen } from './screens/SettingsScreen'
 import { SummaryScreen } from './screens/SummaryScreen'
+import { TransactionScreen } from './screens/TransactionScreen'
 import { TransactionsScreen } from './screens/TransactionsScreen'
 
 export function App() {
@@ -17,7 +18,10 @@ export function App() {
     <Routes>
       <Route element={<AppLayout />}>
         <Route index element={<SummaryScreen />} />
-        <Route path="movimientos" element={<TransactionsScreen />} />
+        <Route path="movimientos">
+          <Route index element={<TransactionsScreen />} />
+          <Route path=":id" element={<TransactionScreen />} />
+        </Route>
         <Route path="objetivos" element={<GoalsScreen />} />
         <Route path="ajustes">
           <Route index element={<SettingsScreen />} />
