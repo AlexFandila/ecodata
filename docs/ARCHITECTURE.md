@@ -27,7 +27,7 @@ finanzas-app/
 │   ├── web/                  # React + Vite PWA (mobile-first)
 │   └── mcp/                  # (Fase 3) servidor MCP de solo lectura
 ├── packages/
-│   ├── core/                 # dominio puro, sin IO: money, matching, rules, finance
+│   ├── core/                 # dominio puro, sin IO: money, dedupe, dates, matching, rules, finance
 │   └── shared/               # esquemas zod + tipos (contratos)
 ├── data/                     # datos reales del usuario — git-ignored, vetado a Claude Code
 └── docs/

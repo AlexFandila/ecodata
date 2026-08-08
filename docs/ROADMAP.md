@@ -26,7 +26,7 @@ Trabajar una fase cada vez, y dentro de cada fase, una tarea cada vez. Marcar ca
 - [x] Puerto `TransactionSource` + `Norma43Adapter` con fixtures sintéticos y tests (Unicaja no exporta CSV sino Norma 43 de la AEB — ver ADR-010)
 - [x] `RevolutCsvAdapter` (atención: multidivisa) con fixtures sintéticos y tests (el CSV está traducido y su columna de saldo se autoverifica — ver ADR-011)
 - [x] Pipeline de importación: normalizar → hash → dedupe → persistir → log en `imports`, con `POST /imports` (el hash gana divisa y ordinal de ocurrencia — ver ADR-012)
-- [ ] Matching de transferencias internas según DATA_MODEL.md (en `packages/core`, con tests de los casos borde)
+- [x] Matching de transferencias internas según DATA_MODEL.md (en `packages/core`, con tests de los casos borde; mejor mutuo iterado, sin puntuación mínima — ver ADR-013). Escribirlas en `transfers` es del módulo `ledger`, que entra con la pantalla de revisión
 - [ ] Motor de reglas de categorización + semilla de categorías
 - [ ] `pnpm seed` con datos sintéticos de desarrollo
 - [ ] Web: subir fichero, elegir cuenta, ver resultado del import

@@ -77,6 +77,10 @@ Objetivo: detectar Unicaja → Revolut (y similares) sin intervención, con revi
 
 **Puntuación** (desempate si hay varios candidatos): +2 si `counterparty`/`description` contiene el nombre del otro proveedor o del titular ("REVOLUT", "UNICAJA", nombre del usuario); +1 si la diferencia de fechas es ≤ 1 día. Empate no resoluble → dejar sin emparejar y marcar para revisión.
 
+El +2 se suma una sola vez aunque coincidan el proveedor y el titular: puntúa el par, no las patas. Y no hay puntuación mínima: la puntuación desempata, no acepta, así que un candidato único con cero puntos se empareja igual. Ver ADR-013 para el porqué de las dos cosas.
+
+**Asignación**: un par se acepta solo si cada pata es el **único** máximo de puntuación de la otra; los aceptados se retiran y se recalcula hasta que una ronda no produzca nada. Así el resultado no depende del orden en que se importaron los ficheros, y los empates de verdad quedan sin resolver en vez de romperse en silencio (ADR-013). El motor es `matchInternalTransfers()` en `packages/core`; los criterios (d) y el borrado lógico los aplica quien consulta, no el dominio.
+
 **Resultado**: crear `transfer` con `status = auto` y anotar señales en `matched_by`. El usuario puede confirmar, deshacer (los movimientos vuelven a ser normales) o emparejar manualmente desde la UI.
 
 **Casos borde conocidos**:
