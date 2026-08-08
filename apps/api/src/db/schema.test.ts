@@ -18,8 +18,8 @@ import {
 import { and, eq, isNull, sql } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { Db } from './client'
-import type { NewRule, NewTransaction } from './schema'
-import { accounts, categories, rules, transactions, transfers } from './schema'
+import type { NewGoal, NewRule, NewTransaction } from './schema'
+import { accounts, categories, goals, rules, transactions, transfers } from './schema'
 import {
   createTestDb,
   insertAccount,
@@ -231,6 +231,38 @@ describe('categorías', () => {
 
   it('rechaza un kind inventado', () => {
     expect(() => insertCategory(db, { slug: 'raro', kind: sinTipar('gasto') })).toThrow(/CHECK/i)
+  })
+})
+
+describe('objetivos', () => {
+  /** Un objetivo válido al que cada test le estropea un campo. */
+  function insertGoal(overrides: Partial<NewGoal> = {}): void {
+    db.insert(goals)
+      .values({
+        name: 'Entrada de la vivienda',
+        type: 'house',
+        targetAmountCents: 6_000_000,
+        ...overrides,
+      })
+      .run()
+  }
+
+  it('admite un objetivo con fecha y otro sin ella', () => {
+    expect(() => insertGoal({ targetDate: '2031-06-30' })).not.toThrow()
+    expect(() => insertGoal({ name: 'Fondo de emergencia', targetDate: null })).not.toThrow()
+  })
+
+  it('rechaza un tipo inventado', () => {
+    expect(() => insertGoal({ type: sinTipar('casoplon') })).toThrow(/CHECK/i)
+  })
+
+  it('rechaza una fecha objetivo que no es ISO', () => {
+    expect(() => insertGoal({ targetDate: '30/06/2031' })).toThrow(/CHECK/i)
+  })
+
+  it('rechaza ahorrar hacia cero o hacia un negativo', () => {
+    expect(() => insertGoal({ targetAmountCents: 0 })).toThrow(/CHECK/i)
+    expect(() => insertGoal({ targetAmountCents: -100 })).toThrow(/CHECK/i)
   })
 })
 

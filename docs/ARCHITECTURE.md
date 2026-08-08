@@ -23,7 +23,8 @@ finanzas-app/
 │   │       │   ├── marketdata/  # BCE, Banco de España, INE (con caché local)
 │   │       │   └── advisor/     # reglas de asesoría transparentes
 │   │       ├── db/              # esquema Drizzle y migraciones
-│   │       └── http/            # rutas, auth, arranque
+│   │       ├── http/            # rutas, auth, arranque
+│   │       └── seed/            # `pnpm seed`: datos sintéticos de desarrollo
 │   ├── web/                  # React + Vite PWA (mobile-first)
 │   └── mcp/                  # (Fase 3) servidor MCP de solo lectura
 ├── packages/
@@ -41,7 +42,7 @@ finanzas-app/
 
 ## Contratos (`packages/shared`)
 
-Ser la hoja del grafo de dependencias es lo que convierte a `shared` en punto de encuentro: al no importar de `core` ni de las apps, pueden colgar de él la base de datos, la API, la PWA y el servidor MCP sin arrastrarse entre sí. De ahí que sea también **dueño de las listas de literales que cruzan fronteras** (divisas, proveedores y tipos de cuenta, tipo y origen de categoría, campo y comparación de una regla, adaptadores de importación): están en `src/enums.ts` y el esquema Drizzle las importa de ahí en vez de tener su propia copia. La única que todavía solo usa la base de datos, `TRANSFER_STATUSES`, sigue en `apps/api/src/db/schema.ts` y se mudará cuando tenga contrato.
+Ser la hoja del grafo de dependencias es lo que convierte a `shared` en punto de encuentro: al no importar de `core` ni de las apps, pueden colgar de él la base de datos, la API, la PWA y el servidor MCP sin arrastrarse entre sí. De ahí que sea también **dueño de las listas de literales que cruzan fronteras** (divisas, proveedores y tipos de cuenta, tipo y origen de categoría, campo y comparación de una regla, adaptadores de importación): están en `src/enums.ts` y el esquema Drizzle las importa de ahí en vez de tener su propia copia. Las dos que todavía solo usa la base de datos, `TRANSFER_STATUSES` y `GOAL_TYPES`, siguen en `apps/api/src/db/schema.ts` y se mudarán cuando tengan contrato.
 
 Las listas duplicadas son dos, y por el mismo motivo: `packages/core` necesita las divisas con sus decimales (ADR-008) y necesita saber qué campos y comparaciones admite una regla (ADR-014), pero no puede importar de `shared`. La coherencia la fijan sendos tests en `apps/api`, el único paquete que depende de los dos.
 

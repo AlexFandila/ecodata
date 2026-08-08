@@ -45,15 +45,17 @@ function isoDate(column: string) {
 }
 
 /**
- * La última lista de literales que todavía no tiene ningún contrato de
- * `shared`: la usa solo la base de datos. Se muda a
+ * Las dos listas de literales que todavía no tienen ningún contrato de
+ * `shared`: las usa solo la base de datos. Se mudan a
  * `packages/shared/src/enums.ts` en cuanto llegue su tarea del roadmap —la
- * pantalla de revisión de transferencias— y tenga que verla también la PWA o el
- * MCP. `ACCOUNT_PROVIDERS`, `ACCOUNT_TYPES`, `CATEGORY_KINDS`,
- * `CATEGORY_SOURCES`, `CURRENCY_CODES`, `RULE_FIELDS` y `RULE_MATCH_TYPES` ya
- * hicieron ese viaje y se importan de arriba.
+ * pantalla de revisión de transferencias y los objetivos de la Fase 2— y tengan
+ * que verlas también la PWA o el MCP. `ACCOUNT_PROVIDERS`, `ACCOUNT_TYPES`,
+ * `CATEGORY_KINDS`, `CATEGORY_SOURCES`, `CURRENCY_CODES`, `RULE_FIELDS` y
+ * `RULE_MATCH_TYPES` ya hicieron ese viaje y se importan de arriba.
  */
 export const TRANSFER_STATUSES = ['auto', 'confirmed', 'manual'] as const
+
+export const GOAL_TYPES = ['house', 'car', 'emergency_fund', 'custom'] as const
 
 /** Slug de la categoría del sistema a la que van las transferencias internas. */
 export const INTERNAL_TRANSFER_SLUG = 'internal_transfer'
@@ -288,6 +290,58 @@ export const rules = sqliteTable(
 )
 
 // ---------------------------------------------------------------------------
+// goals
+// ---------------------------------------------------------------------------
+
+/**
+ * Los supuestos del objetivo: entrada %, gastos e impuestos %, retorno
+ * esperado, inflación asumida, aportación inicial…
+ *
+ * Va como JSON y sin tipar de verdad **a propósito**: el motor financiero que
+ * decide qué parámetros necesita cada tipo de objetivo es la Fase 2, y fijar
+ * ahora una forma que todavía no se ha diseñado sería inventarse el contrato.
+ * Cuando exista, el tipo se estrecha aquí y se valida con un esquema de
+ * `shared`.
+ */
+export type GoalParams = Record<string, unknown>
+
+/**
+ * Objetivo de ahorro (vivienda, coche, fondo de emergencia…).
+ *
+ * La tabla es de la Fase 2, pero se adelanta a la Fase 1 porque `pnpm seed`
+ * siembra dos objetivos de ejemplo (docs/DATA_MODEL.md, «Semilla de
+ * desarrollo») y una base de desarrollo a la que le falta una tabla no sirve
+ * para desarrollar contra ella. Solo es el almacén: los cálculos y el contrato
+ * HTTP llegan con su tarea.
+ *
+ * Sin `UNIQUE` en `name`: que dos objetivos se llamen igual será confuso, pero
+ * no incoherente, y la base solo debe arbitrar invariantes de verdad
+ * (docs/DATA_MODEL.md no declara ninguno aquí). Que la semilla no duplique es
+ * problema de la semilla.
+ */
+export const goals = sqliteTable(
+  'goals',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    name: text('name').notNull(),
+    type: text('type', { enum: GOAL_TYPES }).notNull(),
+    targetAmountCents: integer('target_amount_cents').notNull(),
+    /** Fecha objetivo, ISO `YYYY-MM-DD`. Opcional: un fondo de emergencia no tiene plazo. */
+    targetDate: text('target_date'),
+    params: text('params', { mode: 'json' }).$type<GoalParams>(),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  () => [
+    check('goals_type_valido', oneOf('type', GOAL_TYPES)),
+    check('goals_target_date_iso', sql`target_date IS NULL OR ${isoDate('target_date')}`),
+    // Ahorrar hacia cero o hacia un negativo no significa nada.
+    check('goals_target_amount_positivo', sql`target_amount_cents > 0`),
+  ],
+)
+
+// ---------------------------------------------------------------------------
 // Tipos derivados
 // ---------------------------------------------------------------------------
 
@@ -295,6 +349,8 @@ export type Account = typeof accounts.$inferSelect
 export type NewAccount = typeof accounts.$inferInsert
 export type Category = typeof categories.$inferSelect
 export type NewCategory = typeof categories.$inferInsert
+export type Goal = typeof goals.$inferSelect
+export type NewGoal = typeof goals.$inferInsert
 export type Import = typeof imports.$inferSelect
 export type NewImport = typeof imports.$inferInsert
 export type Rule = typeof rules.$inferSelect

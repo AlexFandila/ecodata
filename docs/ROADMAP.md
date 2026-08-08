@@ -21,14 +21,14 @@ Trabajar una fase cada vez, y dentro de cada fase, una tarea cada vez. Marcar ca
 ## Fase 1 — Núcleo usable (MVP)
 
 - [x] `packages/core`: tipo `Money` (céntimos + divisa) con operaciones seguras y tests
-- [x] Esquema Drizzle + migraciones: `accounts`, `transactions`, `categories`, `rules`, `transfers`, `imports` (ver DATA_MODEL.md)
+- [x] Esquema Drizzle + migraciones: `accounts`, `transactions`, `categories`, `rules`, `transfers`, `imports` (ver DATA_MODEL.md). `goals` se añadió después, con `pnpm seed`
 - [x] `packages/shared`: esquema `NormalizedTransaction` y contratos HTTP de la Fase 1 (ingesta y movimientos; reglas, transferencias y dashboard entran con su tarea — ver ADR-009)
 - [x] Puerto `TransactionSource` + `Norma43Adapter` con fixtures sintéticos y tests (Unicaja no exporta CSV sino Norma 43 de la AEB — ver ADR-010)
 - [x] `RevolutCsvAdapter` (atención: multidivisa) con fixtures sintéticos y tests (el CSV está traducido y su columna de saldo se autoverifica — ver ADR-011)
 - [x] Pipeline de importación: normalizar → hash → dedupe → persistir → log en `imports`, con `POST /imports` (el hash gana divisa y ordinal de ocurrencia — ver ADR-012)
 - [x] Matching de transferencias internas según DATA_MODEL.md (en `packages/core`, con tests de los casos borde; mejor mutuo iterado, sin puntuación mínima — ver ADR-013). Escribirlas en `transfers` es del módulo `ledger`, que entra con la pantalla de revisión
 - [x] Motor de reglas de categorización + semilla de categorías (`contains` normaliza y `regex` no; una regla rota se salta en vez de tumbar la importación — ver ADR-014). La semilla es `seedCategories()`, idempotente, no una migración
-- [ ] `pnpm seed` con datos sintéticos de desarrollo
+- [x] `pnpm seed` con datos sintéticos de desarrollo. Genera un cuaderno 43 y un CSV de Revolut sintéticos y los pasa por el `runImport()` de producción, así que el dedupe, el `raw` y las filas de `imports` son los de verdad y sembrar dos veces no duplica nada. Se adelantó aquí la tabla `goals` de la Fase 2, porque la semilla siembra dos objetivos de ejemplo
 - [ ] Web: subir fichero, elegir cuenta, ver resultado del import
 - [ ] Web: lista de movimientos con filtros; bandeja "sin categorizar"; crear regla desde un movimiento
 - [ ] Web: revisión de transferencias internas (confirmar / deshacer / emparejar a mano)

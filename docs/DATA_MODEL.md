@@ -36,6 +36,7 @@ Nombres de tablas y campos en inglés. Dinero siempre como enteros en céntimos 
 ### goals
 - `id`, `name`, `type` (`house` | `car` | `emergency_fund` | `custom`)
 - `target_amount_cents`, `target_date` (opcional), `params` (JSON: entrada %, gastos e impuestos %, retorno esperado, inflación asumida, aportación inicial…)
+- La tabla se creó en la Fase 1, junto con `pnpm seed`, aunque los objetivos sean de la Fase 2: la semilla siembra dos de ejemplo y una base de desarrollo a la que le falta una tabla no sirve para desarrollar contra ella. `params` va como JSON sin tipar a propósito hasta que el motor financiero decida qué supuestos necesita cada tipo de objetivo. Sin `UNIQUE` en `name`: dos objetivos homónimos serán confusos, pero no incoherentes.
 
 ### imports
 - `id`, `account_id` (cuenta a la que fue el fichero: la elige el usuario al subirlo, y todos los movimientos de un import van a la misma), `source` (adaptador usado), `file_name`, `imported_at`, `stats` (JSON: filas leídas, insertadas, duplicadas, errores)
@@ -102,4 +103,12 @@ El motor es `applyCategoryRules()` en `packages/core`: decide, pero no escribe. 
 
 ## Semilla de desarrollo
 
-`pnpm seed` puebla la base de dev (`apps/api/.dev/dev.db`) con: 2 cuentas (unicaja, revolut), 3 meses de movimientos sintéticos realistas (nómina, alquiler, supermercado, suscripciones…), varias transferencias internas emparejables y 2 objetivos de ejemplo. Los tests de matching y de reglas usan estos mismos generadores. Ningún dato real, nunca.
+`pnpm seed` puebla la base de dev (`apps/api/.dev/dev.db`) con: 2 cuentas (unicaja, revolut), 3 meses de movimientos sintéticos realistas (nómina, alquiler, supermercado, suscripciones…), un puñado de reglas de categorización, varias transferencias internas emparejables y 2 objetivos de ejemplo. Ningún dato real, nunca.
+
+Cómo, y por qué así (`apps/api/src/seed/`):
+
+- **No inserta filas: genera ficheros.** `synthetic.ts` construye un cuaderno 43 y un CSV de Revolut con los constructores sintéticos que ya usan los tests de cada adaptador, y `run.ts` los pasa por el `runImport()` de producción. Así la base de desarrollo tiene el mismo `raw`, el mismo `source_hash` y las mismas filas en `imports` que tendría con ficheros de verdad, y la semilla vale además de prueba de humo del pipeline entero.
+- **Idempotente sin inventarse nada.** Cuentas por nombre, reglas por su terna (campo, tipo, patrón), objetivos por nombre, y movimientos por el `UNIQUE(source_hash)` del invariante 1: la segunda pasada reporta `inserted: 0` y deja una fila más en `imports`, exactamente como un fichero reimportado. `pnpm seed --reset` borra la base y la recrea, y se niega a borrar nada que no cuelgue de `.dev/`.
+- **Determinista, pero con fechas frescas.** El generador es puro y no lee el reloj: recibe la fecha final como parámetro. El CLI le pasa hoy —para que el dashboard tenga movimientos del mes en curso, cortados en la fecha de hoy— y los tests una fecha fija. La misma fecha produce siempre los mismos bytes.
+- **Deja trabajo a medio hacer, a propósito.** Un bizum, un adeudo y un pago QR no casan con ninguna regla, para que la bandeja de «sin categorizar» tenga contenido. Y las patas de las transferencias tampoco: la semilla **no escribe en `transfers`** —eso es del módulo `ledger`—, solo deja traspasos que el matcher pueda casar (cada uno de importe distinto, porque los empates los descarta) y cuenta cuántos casaría a modo de diagnóstico.
+- Ninguna cuenta lleva IBAN: uno español en un fichero versionado lo rechazaría el propio hook pre-commit (ADR-006), y para desarrollar no aporta nada.
