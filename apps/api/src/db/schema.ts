@@ -124,7 +124,7 @@ export const categories = sqliteTable(
 
 export const imports = sqliteTable('imports', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  /** Adaptador que produjo los movimientos: `unicaja_csv`, `revolut_csv`… */
+  /** Adaptador que produjo los movimientos: `norma43`, `revolut_csv`… */
   source: text('source').notNull(),
   fileName: text('file_name'),
   importedAt: integer('imported_at', { mode: 'timestamp_ms' })

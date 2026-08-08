@@ -5,12 +5,12 @@ describe('createImportRequestSchema', () => {
   it('coacciona los campos de un formulario multipart, que llegan en texto', () => {
     const result = createImportRequestSchema.parse({
       accountId: '2',
-      source: 'unicaja_csv',
+      source: 'norma43',
       fileName: 'movimientos-marzo.csv',
     })
 
     expect(result.accountId).toBe(2)
-    expect(result.source).toBe('unicaja_csv')
+    expect(result.source).toBe('norma43')
   })
 
   it('el nombre del fichero es opcional', () => {
@@ -27,9 +27,9 @@ describe('createImportRequestSchema', () => {
 
   it('rechaza una cuenta que no puede ser un id', () => {
     for (const accountId of ['0', '-1', 'primera', '']) {
-      expect(
-        createImportRequestSchema.safeParse({ accountId, source: 'unicaja_csv' }).success,
-      ).toBe(false)
+      expect(createImportRequestSchema.safeParse({ accountId, source: 'norma43' }).success).toBe(
+        false,
+      )
     }
   })
 })
@@ -65,7 +65,7 @@ describe('importResultResponseSchema', () => {
   const resultado = {
     importId: 7,
     accountId: 2,
-    source: 'unicaja_csv',
+    source: 'norma43',
     fileName: 'movimientos-marzo.csv',
     importedAt: '2026-04-01T18:20:00Z',
     stats: { read: 120, inserted: 95, duplicated: 25, errors: 0 },

@@ -49,7 +49,13 @@ export type CategorySource = z.infer<typeof categorySourceSchema>
  * Adaptador que produjo una importación; es lo que se guarda en
  * `imports.source`. Cada adaptador nuevo (regla 5 de CLAUDE.md) añade aquí su
  * literal: `enable_banking` llegará en la Fase 4.
+ *
+ * Los literales nombran el **formato**, no el banco, porque de qué banco es una
+ * importación ya lo dice la cuenta a la que va (`accounts.provider`). Por eso
+ * `norma43` y no `unicaja_*`: la Norma 43 de la AEB es un estándar y el mismo
+ * adaptador sirve para cualquier banco español que la exporte (ADR-010).
+ * `revolut_csv` sí lleva nombre de casa porque su CSV es suyo y de nadie más.
  */
-export const IMPORT_SOURCES = ['unicaja_csv', 'revolut_csv'] as const
+export const IMPORT_SOURCES = ['norma43', 'revolut_csv'] as const
 export const importSourceSchema = z.enum(IMPORT_SOURCES)
 export type ImportSource = z.infer<typeof importSourceSchema>

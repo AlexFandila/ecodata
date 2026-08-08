@@ -3,7 +3,7 @@
  * ingesta, antes de tocar la base de datos.
  *
  * Es el contrato del puerto `TransactionSource` (docs/ARCHITECTURE.md): todos
- * los adaptadores —`UnicajaCsvAdapter`, `RevolutCsvAdapter` y, en la Fase 4,
+ * los adaptadores —`Norma43Adapter`, `RevolutCsvAdapter` y, en la Fase 4,
  * `EnableBankingAdapter`— devuelven exactamente esta forma, y el pipeline de
  * importación es único porque solo conoce esta forma. Añadir un banco es
  * escribir algo que produzca esto; no se toca ni el pipeline ni el dominio.

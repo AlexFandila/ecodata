@@ -150,7 +150,7 @@ describe('normalizedTransactionSchema · raw', () => {
 
 /**
  * El ensayo de la tarea siguiente: lo que tendrán que producir
- * `UnicajaCsvAdapter` y `RevolutCsvAdapter`. Si estas dos formas no caben en el
+ * `Norma43Adapter` y `RevolutCsvAdapter`. Si estas dos formas no caben en el
  * esquema, el contrato está mal planteado y es ahora cuando hay que verlo.
  */
 describe('normalizedTransactionListSchema · lo que devolverá un adaptador', () => {

@@ -51,7 +51,7 @@ export function insertCategory(db: Db, overrides: Partial<NewCategory> = {}): nu
 export function insertImport(db: Db, overrides: Partial<NewImport> = {}): number {
   const row = db
     .insert(imports)
-    .values({ source: 'unicaja_csv', fileName: 'ejemplo.csv', ...overrides })
+    .values({ source: 'norma43', fileName: 'ejemplo.n43', ...overrides })
     .returning({ id: imports.id })
     .get()
   if (row === undefined) throw new Error('No se pudo crear el import de prueba')
