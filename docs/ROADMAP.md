@@ -29,7 +29,7 @@ Trabajar una fase cada vez, y dentro de cada fase, una tarea cada vez. Marcar ca
 - [x] Matching de transferencias internas según DATA_MODEL.md (en `packages/core`, con tests de los casos borde; mejor mutuo iterado, sin puntuación mínima — ver ADR-013). Escribirlas en `transfers` es del módulo `ledger`, que entra con la pantalla de revisión
 - [x] Motor de reglas de categorización + semilla de categorías (`contains` normaliza y `regex` no; una regla rota se salta en vez de tumbar la importación — ver ADR-014). La semilla es `seedCategories()`, idempotente, no una migración
 - [x] `pnpm seed` con datos sintéticos de desarrollo. Genera un cuaderno 43 y un CSV de Revolut sintéticos y los pasa por el `runImport()` de producción, así que el dedupe, el `raw` y las filas de `imports` son los de verdad y sembrar dos veces no duplica nada. Se adelantó aquí la tabla `goals` de la Fase 2, porque la semilla siembra dos objetivos de ejemplo
-- [ ] Web: subir fichero, elegir cuenta, ver resultado del import
+- [x] Web: subir fichero, elegir cuenta, ver resultado del import. Trajo consigo el armazón que faltaba: `GET`/`POST /accounts` en un módulo `ledger` nuevo (sin cuentas no hay a dónde importar), la navegación de pestañas inferior y los tests de UI (jsdom + Testing Library). El cliente HTTP conserva el `code` del error, que es lo que distingue "este fichero no es de ese formato" de "esa cuenta ya no existe"
 - [ ] Web: lista de movimientos con filtros; bandeja "sin categorizar"; crear regla desde un movimiento
 - [ ] Web: revisión de transferencias internas (confirmar / deshacer / emparejar a mano)
 - [ ] Web: dashboard móvil — saldo por cuenta y total, gasto del mes por categoría, evolución ingresos/gastos (excluyendo transferencias internas)

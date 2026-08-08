@@ -87,8 +87,18 @@ Dos capas separadas a propósito:
 
 - `vite-plugin-pwa`: manifest, iconos, service worker con caché básica para poder consultar el último estado sin conexión.
 - Instalable en Android (prompt nativo) y en iPhone (Compartir → Añadir a pantalla de inicio). Ver ADR-001.
-- Navegación inferior de 4-5 pestañas: Resumen · Movimientos · Objetivos · Aprender · Ajustes.
+- Navegación inferior de 4-5 pestañas: Resumen · Movimientos · Objetivos · Aprender · Ajustes. Van cuatro montadas; *Aprender* entra con su módulo en la Fase 5.
 - Estado de servidor con TanStack Query; nada de estado global complejo mientras no haga falta.
+- Router: `react-router` en modo declarativo (`<BrowserRouter>` + `<Routes>`), sin rutas por ficheros ni build de servidor: la PWA se sirve como estáticos.
+- Las direcciones van en español porque el usuario las ve (`/movimientos`, `/ajustes/importar`); los ficheros y los identificadores, en inglés como el resto del código.
+
+Estructura de `apps/web/src`:
+
+- `api/` — el único sitio que habla con la API. `client.ts` traduce el contrato de error de ADR-009 a un `ApiError` que **conserva el `code`**, para que las pantallas decidan por el código y no por el texto; los demás ficheros son un módulo por recurso y validan la respuesta con el esquema de `shared`.
+- `screens/` — una pantalla por ruta. `components/` — lo compartido entre pantallas (`AppLayout`, `TabBar`, `Screen`).
+- Tests de UI con Vitest en entorno jsdom y Testing Library, junto al componente (`X.test.tsx`), simulando `fetch`. No hay servidor de mentira: el cliente HTTP es un único punto de entrada y basta con `vi.stubGlobal`.
+
+`apps/web` solo conoce `packages/shared`: nunca importa de `apps/api` ni de `packages/core`. Lo aplica la regla `web-only-shared` de dependency-cruiser, no la buena voluntad.
 
 ## Servidor MCP (Fase 3)
 

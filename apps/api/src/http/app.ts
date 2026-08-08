@@ -3,6 +3,7 @@ import { healthResponseSchema } from '@finanzas/shared'
 import { Hono } from 'hono'
 import type { Db } from '../db/client'
 import { errorJson } from './errors'
+import { createAccountsRoutes } from './routes/accounts'
 import { createImportsRoutes } from './routes/imports'
 
 /**
@@ -27,6 +28,7 @@ export function createApp(db: Db) {
     return c.json(healthResponseSchema.parse({ status: 'ok', version: CORE_VERSION }))
   })
 
+  app.route('/accounts', createAccountsRoutes(db))
   app.route('/imports', createImportsRoutes(db))
 
   return app

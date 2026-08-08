@@ -70,6 +70,14 @@ module.exports = {
       to: { path: '^(apps/|packages/core/)' },
     },
     {
+      name: 'web-only-shared',
+      severity: 'error',
+      comment:
+        'apps/web habla con la API por HTTP: solo conoce los contratos de packages/shared. Importar de la API o del dominio metería lógica de servidor en el bundle y saltaría la frontera del contrato.',
+      from: { path: '^apps/web/' },
+      to: { path: '^(apps/api/|apps/mcp/|packages/core/)' },
+    },
+    {
       name: 'no-circular',
       severity: 'error',
       comment: 'Las dependencias circulares hacen intratable el orden de inicialización.',

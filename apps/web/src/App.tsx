@@ -1,36 +1,31 @@
-import { useQuery } from '@tanstack/react-query'
-import { fetchHealth } from './api'
-
-function EstadoApi() {
-  const { data, isPending, error } = useQuery({
-    queryKey: ['health'],
-    queryFn: fetchHealth,
-    retry: false,
-  })
-
-  if (isPending) {
-    return <p className="text-slate-400">Conectando con la API…</p>
-  }
-
-  if (error) {
-    return (
-      <p className="text-rose-400">Sin conexión con la API. ¿Está levantada? ({error.message})</p>
-    )
-  }
-
-  return <p className="text-emerald-400">API disponible · núcleo v{data.version}</p>
-}
+/**
+ * Mapa de rutas. Las direcciones van en español porque el usuario las ve; los
+ * identificadores y los ficheros, en inglés (CLAUDE.md).
+ */
+import { Route, Routes } from 'react-router'
+import { AppLayout } from './components/AppLayout'
+import { GoalsScreen } from './screens/GoalsScreen'
+import { ImportScreen } from './screens/ImportScreen'
+import { NewAccountScreen } from './screens/NewAccountScreen'
+import { NotFoundScreen } from './screens/NotFoundScreen'
+import { SettingsScreen } from './screens/SettingsScreen'
+import { SummaryScreen } from './screens/SummaryScreen'
+import { TransactionsScreen } from './screens/TransactionsScreen'
 
 export function App() {
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-3 px-5 py-8">
-      <h1 className="text-2xl font-semibold text-slate-100">Finanzas</h1>
-      <p className="text-sm text-slate-400">
-        Fase 0 en marcha: monorepo, tipos estrictos y fronteras de módulos.
-      </p>
-      <div className="rounded-xl bg-slate-800/60 p-4 text-sm">
-        <EstadoApi />
-      </div>
-    </main>
+    <Routes>
+      <Route element={<AppLayout />}>
+        <Route index element={<SummaryScreen />} />
+        <Route path="movimientos" element={<TransactionsScreen />} />
+        <Route path="objetivos" element={<GoalsScreen />} />
+        <Route path="ajustes">
+          <Route index element={<SettingsScreen />} />
+          <Route path="importar" element={<ImportScreen />} />
+          <Route path="cuentas/nueva" element={<NewAccountScreen />} />
+        </Route>
+        <Route path="*" element={<NotFoundScreen />} />
+      </Route>
+    </Routes>
   )
 }
