@@ -39,6 +39,22 @@ finanzas-app/
 - `packages/core` no importa nada de `apps/*` ni hace IO (ni base de datos, ni red, ni ficheros). Recibe datos, devuelve resultados. Esto lo hace trivial de testear y de reutilizar desde api y mcp.
 - `packages/shared` define con zod todo lo que cruza una frontera: cuerpos HTTP, resultados de tools MCP, filas normalizadas de importación. Los tipos de TypeScript se derivan de los esquemas (`z.infer`), nunca se duplican a mano.
 
+## Contratos (`packages/shared`)
+
+Ser la hoja del grafo de dependencias es lo que convierte a `shared` en punto de encuentro: al no importar de `core` ni de las apps, pueden colgar de él la base de datos, la API, la PWA y el servidor MCP sin arrastrarse entre sí. De ahí que sea también **dueño de las listas de literales que cruzan fronteras** (divisas, proveedores y tipos de cuenta, origen de categoría, adaptadores de importación): están en `src/enums.ts` y el esquema Drizzle las importa de ahí en vez de tener su propia copia. Las que todavía solo usa la base de datos siguen en `apps/api/src/db/schema.ts` y se mudan cuando alguna tenga contrato.
+
+La única lista que sigue duplicada es la de divisas, porque `packages/core` la necesita con sus decimales (ADR-008) y `shared` no puede importarla. La coherencia la fija un test en `apps/api`, el único paquete que depende de los dos.
+
+Convenciones comunes a todos los contratos (ADR-009):
+
+- **Dinero**: `amountCents` entero + `currency` ISO 4217, como campos hermanos, igual que en la base de datos. Nunca floats, nunca un importe sin divisa.
+- **Fechas de calendario** (`bookedAt`, `valueDate`, filtros): texto ISO `YYYY-MM-DD`, validado de forma más estricta que el `GLOB` de SQLite —`2026-02-31` se rechaza—. **Instantes** (`importedAt`, `createdAt`): ISO 8601 UTC, aunque la base los guarde como epoch en milisegundos.
+- **Las respuestas son objetos con clave nombrada** (`{ accounts: [...] }`), nunca arrays pelados: así admiten metadatos nuevos sin romper a quien ya las lee.
+- **Lo interno no sale**: `raw`, `sourceHash` y `deletedAt` no aparecen en ninguna respuesta de la API.
+- **Los errores también tienen contrato**: `{ error: { code, message, details? } }` con `code` de una lista cerrada, para que el cliente decida por el código y no por el texto del mensaje.
+
+`NormalizedTransaction` es el contrato del puerto `TransactionSource`: el movimiento tal como sale de un adaptador, **antes** de hash, deduplicación y persistencia. Por eso no lleva `accountId` (la cuenta la elige el usuario al subir el fichero) ni `sourceHash` (se calcula después, e incluye la cuenta), pero sí `raw`: el adaptador es el único que ve la fila original y el invariante 4 exige conservarla.
+
 ## Puertos y adaptadores
 
 ### Ingesta (`ingest`)

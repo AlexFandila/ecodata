@@ -22,7 +22,7 @@ Trabajar una fase cada vez, y dentro de cada fase, una tarea cada vez. Marcar ca
 
 - [x] `packages/core`: tipo `Money` (céntimos + divisa) con operaciones seguras y tests
 - [x] Esquema Drizzle + migraciones: `accounts`, `transactions`, `categories`, `rules`, `transfers`, `imports` (ver DATA_MODEL.md)
-- [ ] `packages/shared`: esquema `NormalizedTransaction` y contratos HTTP de la Fase 1
+- [x] `packages/shared`: esquema `NormalizedTransaction` y contratos HTTP de la Fase 1 (ingesta y movimientos; reglas, transferencias y dashboard entran con su tarea — ver ADR-009)
 - [ ] Puerto `TransactionSource` + `UnicajaCsvAdapter` con fixtures sintéticos y tests
 - [ ] `RevolutCsvAdapter` (atención: multidivisa) con fixtures sintéticos y tests
 - [ ] Pipeline de importación: normalizar → hash → dedupe → persistir → log en `imports`

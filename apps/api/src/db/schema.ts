@@ -15,12 +15,16 @@
  *   invita a desfases de un día. Los instantes de verdad (`deleted_at`,
  *   `imported_at`) sí son epoch en milisegundos.
  */
+import {
+  ACCOUNT_PROVIDERS,
+  ACCOUNT_TYPES,
+  CATEGORY_SOURCES,
+  CURRENCY_CODES,
+  type ImportStats,
+} from '@finanzas/shared'
 import { sql } from 'drizzle-orm'
 import type { AnySQLiteColumn } from 'drizzle-orm/sqlite-core'
 import { check, index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
-
-/** Divisas admitidas. Debe seguir a `CURRENCIES` de packages/core (ADR-008). */
-const CURRENCY_CODES = ['EUR', 'USD', 'GBP', 'CHF', 'JPY'] as const
 
 /** `CHECK` de pertenencia a una lista de literales. */
 function oneOf(column: string, values: readonly string[]) {
@@ -37,10 +41,14 @@ function isoDate(column: string) {
   return sql.raw(`${column} GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'`)
 }
 
-export const ACCOUNT_PROVIDERS = ['unicaja', 'revolut', 'manual'] as const
-export const ACCOUNT_TYPES = ['checking', 'savings', 'card'] as const
+/**
+ * Listas de literales que todavía no tiene ningún contrato de `shared`: las usa
+ * solo la base de datos. Cada una se muda a `packages/shared/src/enums.ts` en
+ * cuanto llegue su tarea del roadmap y tenga que verla también la PWA o el MCP.
+ * `ACCOUNT_PROVIDERS`, `ACCOUNT_TYPES`, `CATEGORY_SOURCES` y `CURRENCY_CODES`
+ * ya hicieron ese viaje y se importan de arriba.
+ */
 export const CATEGORY_KINDS = ['expense', 'income', 'internal'] as const
-export const CATEGORY_SOURCES = ['rule', 'manual', 'suggestion'] as const
 export const RULE_FIELDS = ['counterparty', 'description'] as const
 export const RULE_MATCH_TYPES = ['contains', 'regex'] as const
 export const TRANSFER_STATUSES = ['auto', 'confirmed', 'manual'] as const
@@ -125,13 +133,6 @@ export const imports = sqliteTable('imports', {
   /** JSON: filas leídas, insertadas, duplicadas, errores. */
   stats: text('stats', { mode: 'json' }).$type<ImportStats>(),
 })
-
-export type ImportStats = {
-  read: number
-  inserted: number
-  duplicated: number
-  errors: number
-}
 
 // ---------------------------------------------------------------------------
 // transfers

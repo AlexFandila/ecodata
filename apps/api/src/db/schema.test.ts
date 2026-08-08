@@ -5,6 +5,8 @@
  * que demostrar es que la fila mala NO entra. Cada bloque de aquí intenta
  * violar un invariante y exige que la base lo rechace.
  */
+import { CURRENCY_CODES as coreCurrencies } from '@finanzas/core'
+import { CURRENCY_CODES as sharedCurrencies } from '@finanzas/shared'
 import { and, eq, isNull, sql } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { Db } from './client'
@@ -274,5 +276,31 @@ describe('raw', () => {
       .all()
 
     expect(row?.raw).toEqual(original)
+  })
+})
+
+/**
+ * La lista de divisas está en dos sitios y no puede estarlo en uno solo:
+ * `packages/core` la necesita con sus decimales (ADR-008) y `packages/shared`
+ * la necesita para los contratos, pero shared no puede importar de core (regla
+ * `shared-is-leaf`). `apps/api` es el único paquete que depende de los dos, así
+ * que es aquí donde se puede comprobar que no se han separado.
+ *
+ * Este test es lo que convierte «acuérdate de tocar las dos» en un error.
+ */
+describe('divisas — coherencia entre paquetes', () => {
+  it('shared y core admiten exactamente las mismas', () => {
+    expect([...sharedCurrencies].sort()).toEqual([...coreCurrencies].sort())
+  })
+
+  it('el CHECK de la base las acepta todas', () => {
+    for (const currency of sharedCurrencies) {
+      expect(() =>
+        db
+          .insert(accounts)
+          .values({ name: `Cuenta ${currency}`, provider: 'manual', type: 'checking', currency })
+          .run(),
+      ).not.toThrow()
+    }
   })
 })

@@ -1,0 +1,25 @@
+# ADR-009 — Contratos zod en `packages/shared`: forma, propiedad de los literales y errores
+
+**Estado**: aceptada · 2026-08
+
+## Contexto
+ARCHITECTURE.md dice que `packages/shared` define con zod todo lo que cruza una frontera, pero hasta ahora el paquete solo tenía el contrato de `/health`, así que ninguna de esas decisiones se había tomado de verdad. La Fase 1 obliga a tomarlas: `NormalizedTransaction` es el tipo de retorno del puerto `TransactionSource` y, por tanto, la firma que compartirán los adaptadores de Unicaja, de Revolut y —en la Fase 4— el de Open Banking. Cambiarla más tarde es tocar todos los adaptadores y el pipeline a la vez.
+
+Había además una duplicación en marcha. La lista de divisas vivía en `packages/core` (con los decimales de cada una, ADR-008) y otra vez en el esquema Drizzle, con un comentario pidiendo que se mantuvieran sincronizadas a mano. Los contratos habrían añadido una tercera copia, y lo mismo con los proveedores de cuenta, los tipos de cuenta y el origen de categoría. Un comentario que pide sincronizar no es una garantía (ADR-006).
+
+## Decisión
+1. **`shared` es dueño de las listas de literales que cruzan fronteras.** `CURRENCY_CODES`, `ACCOUNT_PROVIDERS`, `ACCOUNT_TYPES`, `CATEGORY_SOURCES` e `IMPORT_SOURCES` viven en `packages/shared/src/enums.ts`, y `apps/api/src/db/schema.ts` las importa de ahí para construir sus `CHECK`. Que `shared` sea la hoja del grafo es justo lo que lo permite: puede colgar de él la base, la API, la PWA y el MCP. Las listas que todavía solo usa la base de datos (`CATEGORY_KINDS`, `RULE_FIELDS`, `RULE_MATCH_TYPES`, `TRANSFER_STATUSES`) se quedan en el esquema y se mudan cuando tengan contrato.
+2. **Las divisas siguen duplicadas, pero con un test que las ata.** `core` necesita la tabla con `minorUnits`, que es dominio, y `shared` no puede importar de `core` (regla `shared-is-leaf`). En vez de elegir cuál de las dos reglas romper, la coherencia se comprueba en `apps/api`, el único paquete que depende de ambos: añadir una divisa en uno y olvidarla en el otro pone un test en rojo.
+3. **Dinero plano.** `amountCents` + `currency` como campos hermanos, no un objeto `Money` anidado. Es la forma que ya tienen la tabla `transactions` y las columnas de un CSV, así que el pipeline no aplana ni infla nada; `core.money()` se aplica cuando hay que *operar*, que es para lo que existe.
+4. **Fechas de calendario e instantes son cosas distintas.** Las primeras (`bookedAt`, `valueDate`, filtros) van en texto ISO `YYYY-MM-DD` y se validan comprobando que el día exista, más estricto que el `GLOB` de SQLite. Los segundos (`importedAt`, `createdAt`) van en ISO 8601 UTC en el contrato aunque la base los guarde como epoch en milisegundos: calcular quiere números, leer quiere texto, y la conversión es trabajo del borde HTTP.
+5. **Las respuestas son objetos con clave nombrada, nunca arrays pelados.** `{ accounts: [...] }` admite un total o una fecha de última sincronización más adelante; `[...]` obliga a romper el contrato para añadirlos.
+6. **Lo interno no sale por la API.** `raw`, `sourceHash` y `deletedAt` no aparecen en ninguna respuesta: los dos primeros son maquinaria de deduplicación y el tercero no llega a existir para el cliente, porque un movimiento borrado sencillamente no se devuelve (invariante 5).
+7. **Los errores también tienen contrato**: `{ error: { code, message, details? } }`, con `code` de una lista cerrada. El `code` es para que decida el programa y el `message` para que lea la persona; sin esto, el cliente acaba distinguiendo casos por el texto del mensaje.
+8. **`NormalizedTransaction` es lo que entra, no lo que se guarda.** No lleva `accountId` (un fichero no dice a qué cuenta pertenece: la elige el usuario), ni `sourceHash` (se calcula después y necesita la cuenta, invariante 1), ni categoría, transferencia ni ids. Sí lleva `raw`, porque el adaptador es el único punto del sistema que ve la fila original (invariante 4). Los campos que la base admite nulos son aquí `nullable()` pero **obligatorios**: el adaptador decide, no omite.
+
+## Consecuencias
+- Añadir una divisa o un proveedor es tocar un fichero; olvidarse de una capa lo detecta el compilador o un test, no una revisión.
+- El esquema Drizzle pasa a depender de `packages/shared`. Es una dependencia hacia la hoja del grafo, así que no crea ciclos, pero conviene saber que la base de datos ya no define su propio vocabulario: lo comparte.
+- Los contratos de reglas, transferencias, categorías y dashboard **no** existen todavía: entran con su tarea del roadmap, cuando se sepa qué necesita la pantalla. Definirlos antes habría fijado formas a ciegas.
+- Exponer los instantes como texto obliga a convertir en el borde HTTP en los dos sentidos. Es código repetitivo y localizado, a cambio de respuestas que se entienden sin consultar el esquema.
+- Si algún día hiciera falta que `shared` conociera los decimales de cada divisa (formatear en el cliente, por ejemplo), habría que mover `CURRENCIES` entera a `shared` y que `core` la importara. Sería revisar la regla `shared-is-leaf` en esa dirección, y merecería su propio ADR.
