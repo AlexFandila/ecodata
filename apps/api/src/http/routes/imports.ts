@@ -8,6 +8,9 @@
  * El fichero se pasa al pipeline como **bytes**, sin decodificar: el encoding
  * es propiedad del formato (el cuaderno 43 viene en latin-1 y el CSV de Revolut
  * en UTF-8) y lo decide el adaptador, que es quien lo conoce.
+ *
+ * La ruta es además quien **orquesta** las etapas del pipeline: importar y, con
+ * lo importado, categorizar. Los módulos no se llaman entre sí.
  */
 import {
   createImportRequestSchema,
@@ -16,6 +19,7 @@ import {
 } from '@finanzas/shared'
 import { Hono } from 'hono'
 import type { Db } from '../../db/client'
+import { categorizeTransactions } from '../../modules/categorize/index'
 import { AccountNotFoundError, runImport, SourceFormatError } from '../../modules/ingest/index'
 import { errorJson } from '../errors'
 
@@ -64,6 +68,18 @@ export function createImportsRoutes(db: Db) {
 
     try {
       const outcome = runImport(db, { ...fields.data, bytes })
+
+      // Paso 1 del pipeline de categorización (DATA_MODEL.md): al importar, se
+      // aplican las reglas activas. Se orquesta aquí y no dentro de
+      // `runImport` para no crear una arista `ingest → categorize`: cada
+      // módulo sigue sin saber que el otro existe.
+      //
+      // Va después de que el import haya confirmado, no dentro de su
+      // transacción, y eso es deliberado: si fallara la categorización, los
+      // movimientos ya están dentro y aparecen en la bandeja de pendientes,
+      // que es un estado correcto. Deshacer el import sería perder datos por
+      // un problema de una etiqueta.
+      categorizeTransactions(db, { importId: outcome.importId })
 
       return c.json(
         importResultResponseSchema.parse({

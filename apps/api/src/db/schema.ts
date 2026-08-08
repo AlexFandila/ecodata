@@ -18,9 +18,12 @@
 import {
   ACCOUNT_PROVIDERS,
   ACCOUNT_TYPES,
+  CATEGORY_KINDS,
   CATEGORY_SOURCES,
   CURRENCY_CODES,
   type ImportStats,
+  RULE_FIELDS,
+  RULE_MATCH_TYPES,
 } from '@finanzas/shared'
 import { sql } from 'drizzle-orm'
 import type { AnySQLiteColumn } from 'drizzle-orm/sqlite-core'
@@ -42,15 +45,14 @@ function isoDate(column: string) {
 }
 
 /**
- * Listas de literales que todavía no tiene ningún contrato de `shared`: las usa
- * solo la base de datos. Cada una se muda a `packages/shared/src/enums.ts` en
- * cuanto llegue su tarea del roadmap y tenga que verla también la PWA o el MCP.
- * `ACCOUNT_PROVIDERS`, `ACCOUNT_TYPES`, `CATEGORY_SOURCES` y `CURRENCY_CODES`
- * ya hicieron ese viaje y se importan de arriba.
+ * La última lista de literales que todavía no tiene ningún contrato de
+ * `shared`: la usa solo la base de datos. Se muda a
+ * `packages/shared/src/enums.ts` en cuanto llegue su tarea del roadmap —la
+ * pantalla de revisión de transferencias— y tenga que verla también la PWA o el
+ * MCP. `ACCOUNT_PROVIDERS`, `ACCOUNT_TYPES`, `CATEGORY_KINDS`,
+ * `CATEGORY_SOURCES`, `CURRENCY_CODES`, `RULE_FIELDS` y `RULE_MATCH_TYPES` ya
+ * hicieron ese viaje y se importan de arriba.
  */
-export const CATEGORY_KINDS = ['expense', 'income', 'internal'] as const
-export const RULE_FIELDS = ['counterparty', 'description'] as const
-export const RULE_MATCH_TYPES = ['contains', 'regex'] as const
 export const TRANSFER_STATUSES = ['auto', 'confirmed', 'manual'] as const
 
 /** Slug de la categoría del sistema a la que van las transferencias internas. */

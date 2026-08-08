@@ -24,10 +24,12 @@
  */
 
 export * from './accounts'
+export * from './categories'
 export * from './enums'
 export * from './errors'
 export * from './health'
 export * from './imports'
 export * from './normalized-transaction'
 export * from './primitives'
+export * from './rules'
 export * from './transactions'

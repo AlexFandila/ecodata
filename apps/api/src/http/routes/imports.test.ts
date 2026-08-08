@@ -5,7 +5,8 @@
 import { errorResponseSchema, importResultResponseSchema } from '@finanzas/shared'
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { Db } from '../../db/client'
-import { createTestDb, insertAccount } from '../../db/testing'
+import { transactions } from '../../db/schema'
+import { createTestDb, insertAccount, insertCategory, insertRule } from '../../db/testing'
 import {
   norma43Bytes,
   type SyntheticNorma43Movement as SyntheticMovement,
@@ -182,5 +183,67 @@ describe('POST /imports · lo que sí llega al pipeline pero falla', () => {
     })
 
     expect(response.status).toBe(422)
+  })
+})
+
+describe('POST /imports · categorización', () => {
+  /** Un extracto de un solo movimiento con el concepto que se le indique. */
+  function extractoCon(concepto: string) {
+    return new File(
+      [norma43Bytes({ movements: [{ amountCents: -4550, concepts: [{ first: concepto }] }] })],
+      'marzo.n43',
+    )
+  }
+
+  it('los movimientos importados salen ya categorizados si hay regla que case', async () => {
+    // Es el paso 1 del pipeline de categorización de DATA_MODEL.md, orquestado
+    // por la ruta: importar y, con lo importado, aplicar las reglas.
+    const categoryId = insertCategory(db, { slug: 'groceries', name: 'Supermercado' })
+    insertRule(db, { categoryId, field: 'description', pattern: 'SUPERMERCADO' })
+
+    const response = await post({
+      file: extractoCon('SUPERMERCADO EJEMPLO'),
+      accountId: String(accountId),
+      source: 'norma43',
+    })
+
+    expect(response.status).toBe(201)
+    const fila = db
+      .select({ categoryId: transactions.categoryId, categorySource: transactions.categorySource })
+      .from(transactions)
+      .get()
+    expect(fila).toEqual({ categoryId, categorySource: 'rule' })
+  })
+
+  it('lo que no casa con ninguna regla entra a la bandeja de pendientes', async () => {
+    const categoryId = insertCategory(db, { slug: 'groceries', name: 'Supermercado' })
+    insertRule(db, { categoryId, field: 'description', pattern: 'SUPERMERCADO' })
+
+    await post({
+      file: extractoCon('FARMACIA EJEMPLO'),
+      accountId: String(accountId),
+      source: 'norma43',
+    })
+
+    const fila = db
+      .select({ categoryId: transactions.categoryId, categorySource: transactions.categorySource })
+      .from(transactions)
+      .get()
+    expect(fila).toEqual({ categoryId: null, categorySource: null })
+  })
+
+  it('una regla con el patrón roto no impide importar', async () => {
+    const categoryId = insertCategory(db, { slug: 'groceries', name: 'Supermercado' })
+    insertRule(db, { categoryId, field: 'description', matchType: 'regex', pattern: '(sin cerrar' })
+
+    const response = await post({
+      file: extractoCon('SUPERMERCADO EJEMPLO'),
+      accountId: String(accountId),
+      source: 'norma43',
+    })
+
+    expect(response.status).toBe(201)
+    const body = importResultResponseSchema.parse(await response.json())
+    expect(body.stats.inserted).toBe(1)
   })
 })

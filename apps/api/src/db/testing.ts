@@ -7,8 +7,8 @@
  */
 import { createDb, type Db } from './client'
 import { runMigrations } from './migrate'
-import type { NewAccount, NewCategory, NewImport, NewTransaction } from './schema'
-import { accounts, categories, imports } from './schema'
+import type { NewAccount, NewCategory, NewImport, NewRule, NewTransaction } from './schema'
+import { accounts, categories, imports, rules } from './schema'
 
 /** Base efímera con el esquema al día. */
 export function createTestDb(): Db {
@@ -45,6 +45,26 @@ export function insertCategory(db: Db, overrides: Partial<NewCategory> = {}): nu
     .returning({ id: categories.id })
     .get()
   if (row === undefined) throw new Error('No se pudo crear la categoría de prueba')
+  return row.id
+}
+
+/** Una regla necesita categoría: una regla que no categoriza no es una regla. */
+export function insertRule(
+  db: Db,
+  overrides: Partial<NewRule> & Pick<NewRule, 'categoryId'>,
+): number {
+  const row = db
+    .insert(rules)
+    .values({
+      priority: 100,
+      field: 'counterparty',
+      matchType: 'contains',
+      pattern: 'SUPERMERCADO EJEMPLO',
+      ...overrides,
+    })
+    .returning({ id: rules.id })
+    .get()
+  if (row === undefined) throw new Error('No se pudo crear la regla de prueba')
   return row.id
 }
 

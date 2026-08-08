@@ -8,10 +8,10 @@
  * Fase 3, `apps/mcp`. Una lista sola, en un sitio del que todos cuelgan, en vez
  * de una copia por capa que hay que recordar sincronizar.
  *
- * Las listas que todavía no tiene ningún contrato (`CATEGORY_KINDS`,
- * `RULE_FIELDS`, `RULE_MATCH_TYPES`, `TRANSFER_STATUSES`) siguen en
- * `apps/api/src/db/schema.ts`; cada una se muda aquí cuando llegue su tarea del
- * roadmap y la necesite alguien más que la base de datos.
+ * La única lista que todavía no tiene contrato (`TRANSFER_STATUSES`) sigue en
+ * `apps/api/src/db/schema.ts`; se muda aquí cuando llegue su tarea del roadmap
+ * —la pantalla de revisión de transferencias— y la necesite alguien más que la
+ * base de datos.
  */
 import { z } from 'zod'
 
@@ -44,6 +44,35 @@ export type AccountType = z.infer<typeof accountTypeSchema>
 export const CATEGORY_SOURCES = ['rule', 'manual', 'suggestion'] as const
 export const categorySourceSchema = z.enum(CATEGORY_SOURCES)
 export type CategorySource = z.infer<typeof categorySourceSchema>
+
+/**
+ * De qué lado del presupuesto está una categoría. `internal` es la del sistema
+ * (`internal_transfer`): ni ingreso ni gasto, porque mover dinero entre cuentas
+ * propias no es ninguna de las dos cosas (invariante 3).
+ */
+export const CATEGORY_KINDS = ['expense', 'income', 'internal'] as const
+export const categoryKindSchema = z.enum(CATEGORY_KINDS)
+export type CategoryKind = z.infer<typeof categoryKindSchema>
+
+/**
+ * Campo del movimiento contra el que compara una regla de categorización.
+ *
+ * Son dos y no uno porque las fuentes llenan uno u otro: la Norma 43 deja
+ * `counterparty` a null y lo mete todo en `description` (ADR-010 punto 7), y el
+ * CSV de Revolut hace justo lo contrario (ADR-011 punto 1).
+ */
+export const RULE_FIELDS = ['counterparty', 'description'] as const
+export const ruleFieldSchema = z.enum(RULE_FIELDS)
+export type RuleField = z.infer<typeof ruleFieldSchema>
+
+/**
+ * Cómo compara una regla: `contains` es subcadena sobre texto normalizado —sin
+ * acentos ni mayúsculas— y `regex` va contra el texto crudo. La autoridad sobre
+ * qué hace exactamente cada uno es `packages/core` (ADR-014).
+ */
+export const RULE_MATCH_TYPES = ['contains', 'regex'] as const
+export const ruleMatchTypeSchema = z.enum(RULE_MATCH_TYPES)
+export type RuleMatchType = z.infer<typeof ruleMatchTypeSchema>
 
 /**
  * Adaptador que produjo una importación; es lo que se guarda en

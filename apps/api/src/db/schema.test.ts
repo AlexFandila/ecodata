@@ -5,8 +5,16 @@
  * que demostrar es que la fila mala NO entra. Cada bloque de aquí intenta
  * violar un invariante y exige que la base lo rechace.
  */
-import { CURRENCY_CODES as coreCurrencies } from '@finanzas/core'
-import { CURRENCY_CODES as sharedCurrencies } from '@finanzas/shared'
+import {
+  CURRENCY_CODES as coreCurrencies,
+  RULE_MATCH_TYPES as coreMatchTypes,
+  RULE_FIELDS as coreRuleFields,
+} from '@finanzas/core'
+import {
+  CURRENCY_CODES as sharedCurrencies,
+  RULE_MATCH_TYPES as sharedMatchTypes,
+  RULE_FIELDS as sharedRuleFields,
+} from '@finanzas/shared'
 import { and, eq, isNull, sql } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { Db } from './client'
@@ -301,6 +309,35 @@ describe('divisas — coherencia entre paquetes', () => {
           .values({ name: `Cuenta ${currency}`, provider: 'manual', type: 'checking', currency })
           .run(),
       ).not.toThrow()
+    }
+  })
+})
+
+/**
+ * Lo mismo que las divisas, y por el mismo motivo: el motor de reglas de
+ * `packages/core` necesita saber qué campos y qué comparaciones existen, y
+ * `packages/shared` los necesita para el contrato, pero shared no puede
+ * importar de core. Si alguien añade un `starts_with` a un lado y no al otro,
+ * salta aquí.
+ */
+describe('reglas — coherencia entre paquetes', () => {
+  it('shared y core admiten los mismos campos y tipos de comparación', () => {
+    expect([...sharedRuleFields].sort()).toEqual([...coreRuleFields].sort())
+    expect([...sharedMatchTypes].sort()).toEqual([...coreMatchTypes].sort())
+  })
+
+  it('el CHECK de la base los acepta todos', () => {
+    const categoryId = insertCategory(db, { slug: 'coherencia' })
+
+    for (const field of sharedRuleFields) {
+      for (const matchType of sharedMatchTypes) {
+        expect(() =>
+          db
+            .insert(rules)
+            .values({ priority: 10, field, matchType, pattern: 'EJEMPLO', categoryId })
+            .run(),
+        ).not.toThrow()
+      }
     }
   })
 })

@@ -27,7 +27,7 @@ Nombres de tablas y campos en inglés. Dinero siempre como enteros en céntimos 
 ### categories
 - `id`, `slug` (UNIQUE — identificador estable independiente del nombre visible: el código referencia `internal_transfer` por aquí, no por un id que la semilla podría renumerar)
 - `name`, `kind` (`expense` | `income` | `internal`), `parent_id` (opcional), `icon` (opcional)
-- Sembrar un árbol inicial razonable (vivienda, supermercado, restaurantes, transporte, suscripciones, salud, ocio, nómina, etc.) + la categoría del sistema `internal_transfer`.
+- El árbol inicial —vivienda, supermercado, restaurantes, transporte, suscripciones, salud, ocio, nómina…, más la categoría del sistema `internal_transfer`— lo siembra `seedCategories()` del módulo `categorize`, que se ejecuta al arrancar la api justo detrás de las migraciones. Es una función idempotente y no un `INSERT` en una migración porque son datos de referencia y no esquema: el usuario puede renombrar una categoría desde la UI y sembrar de nuevo no se lo pisa (ADR-014, punto 8). Dos niveles, slugs en inglés y nombres en español.
 
 ### rules
 - `id`, `priority` (menor = antes), `field` (`counterparty` | `description`), `match_type` (`contains` | `regex`)
@@ -90,11 +90,15 @@ El +2 se suma una sola vez aunque coincidan el proveedor y el titular: puntúa e
 
 ## Pipeline de categorización
 
-1. Al importar, aplicar `rules` activas por orden de `priority`; primera coincidencia gana y escribe `category_source = 'rule'`.
+1. Al importar, aplicar `rules` activas por orden de `priority`; primera coincidencia gana y escribe `category_source = 'rule'`. A igualdad de `priority` desempata el `id` ascendente: `priority` sola no es un orden total y el resto quedaría en manos de cómo devolviera las filas la base (ADR-014, punto 3).
 2. Sin coincidencia → `category_id = null` y `category_source = null` (estado "sin categorizar", visible como bandeja de pendientes en la UI).
 3. Al categorizar a mano, `category_source = 'manual'`; ofrecer "crear regla a partir de este movimiento" (pre-rellenando `contains` sobre la contraparte).
 4. (Futuro, opcional) Sugerencias de categoría vía LLM para lo pendiente: se guardan con `category_source = 'suggestion'` y solo pasan a `'manual'` con confirmación explícita del usuario. Una sugerencia sin confirmar sigue contando como pendiente en la bandeja.
-5. Recategorizar en bloque re-ejecuta reglas solo sobre movimientos con `category_id` null o `category_source = 'rule'` (invariante 7).
+5. Recategorizar en bloque re-ejecuta reglas solo sobre movimientos con `category_id` null o `category_source = 'rule'` (invariante 7), y **devuelve a `(null, null)`** los que una regla había categorizado y ya no casan con nada: si no, quedaría una categoría que ninguna regla explica y que tampoco aparece en la bandeja (ADR-014, punto 6). Las patas de una transferencia interna quedan fuera: su categoría la pone `ledger` por el invariante 3.
+
+**Cómo compara cada `match_type`** (ADR-014, puntos 1 y 2): `contains` es subcadena sobre texto normalizado —sin acentos, sin mayúsculas, la puntuación convertida en espacios—, la misma normalización que usa el matching de transferencias, así que `NOMINA` casa con `Nómina transf.` y `SUPER` con `SUPERMERCADO`. `regex` va contra el texto **crudo**, con banderas `iu`: lo que se escribe es lo que se compara, acentos y puntuación incluidos. Una regla contra un campo `null` no casa nunca.
+
+El motor es `applyCategoryRules()` en `packages/core`: decide, pero no escribe. Quién puede ser recategorizado —el invariante 7— es un filtro de consulta del módulo `categorize`, igual que en el matching lo son el borrado lógico y el criterio (d). Un patrón que no compila no interrumpe la importación: se salta esa regla y se reporta, porque bloquear el dato por un problema de etiqueta sería el peor de los fallos posibles.
 
 ## Semilla de desarrollo
 

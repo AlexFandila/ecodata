@@ -27,7 +27,7 @@ Trabajar una fase cada vez, y dentro de cada fase, una tarea cada vez. Marcar ca
 - [x] `RevolutCsvAdapter` (atención: multidivisa) con fixtures sintéticos y tests (el CSV está traducido y su columna de saldo se autoverifica — ver ADR-011)
 - [x] Pipeline de importación: normalizar → hash → dedupe → persistir → log en `imports`, con `POST /imports` (el hash gana divisa y ordinal de ocurrencia — ver ADR-012)
 - [x] Matching de transferencias internas según DATA_MODEL.md (en `packages/core`, con tests de los casos borde; mejor mutuo iterado, sin puntuación mínima — ver ADR-013). Escribirlas en `transfers` es del módulo `ledger`, que entra con la pantalla de revisión
-- [ ] Motor de reglas de categorización + semilla de categorías
+- [x] Motor de reglas de categorización + semilla de categorías (`contains` normaliza y `regex` no; una regla rota se salta en vez de tumbar la importación — ver ADR-014). La semilla es `seedCategories()`, idempotente, no una migración
 - [ ] `pnpm seed` con datos sintéticos de desarrollo
 - [ ] Web: subir fichero, elegir cuenta, ver resultado del import
 - [ ] Web: lista de movimientos con filtros; bandeja "sin categorizar"; crear regla desde un movimiento

@@ -41,9 +41,9 @@ finanzas-app/
 
 ## Contratos (`packages/shared`)
 
-Ser la hoja del grafo de dependencias es lo que convierte a `shared` en punto de encuentro: al no importar de `core` ni de las apps, pueden colgar de él la base de datos, la API, la PWA y el servidor MCP sin arrastrarse entre sí. De ahí que sea también **dueño de las listas de literales que cruzan fronteras** (divisas, proveedores y tipos de cuenta, origen de categoría, adaptadores de importación): están en `src/enums.ts` y el esquema Drizzle las importa de ahí en vez de tener su propia copia. Las que todavía solo usa la base de datos siguen en `apps/api/src/db/schema.ts` y se mudan cuando alguna tenga contrato.
+Ser la hoja del grafo de dependencias es lo que convierte a `shared` en punto de encuentro: al no importar de `core` ni de las apps, pueden colgar de él la base de datos, la API, la PWA y el servidor MCP sin arrastrarse entre sí. De ahí que sea también **dueño de las listas de literales que cruzan fronteras** (divisas, proveedores y tipos de cuenta, tipo y origen de categoría, campo y comparación de una regla, adaptadores de importación): están en `src/enums.ts` y el esquema Drizzle las importa de ahí en vez de tener su propia copia. La única que todavía solo usa la base de datos, `TRANSFER_STATUSES`, sigue en `apps/api/src/db/schema.ts` y se mudará cuando tenga contrato.
 
-La única lista que sigue duplicada es la de divisas, porque `packages/core` la necesita con sus decimales (ADR-008) y `shared` no puede importarla. La coherencia la fija un test en `apps/api`, el único paquete que depende de los dos.
+Las listas duplicadas son dos, y por el mismo motivo: `packages/core` necesita las divisas con sus decimales (ADR-008) y necesita saber qué campos y comparaciones admite una regla (ADR-014), pero no puede importar de `shared`. La coherencia la fijan sendos tests en `apps/api`, el único paquete que depende de los dos.
 
 Convenciones comunes a todos los contratos (ADR-009):
 
@@ -68,7 +68,7 @@ Adaptadores previstos, en orden:
 
 Un fichero mal formado, o cuyos totales no cuadran con lo leído, es un error del fichero y aborta la importación. Una fila suelta ilegible no: se salta y se reporta, para que un extracto con tres apuntes raros importe los otros doscientos.
 
-El pipeline común (normalizar → hash → deduplicar → persistir → categorizar → emparejar transferencias) es único e independiente del adaptador.
+El pipeline común (normalizar → hash → deduplicar → persistir → categorizar → emparejar transferencias) es único e independiente del adaptador. Las tres primeras etapas son de `ingest` y la de categorizar es de `categorize`; **quien las encadena es la ruta HTTP, no los módulos entre sí** (ADR-014, punto 7). Así `ingest` no sabe que existe la categorización, y añadir la etapa de transferencias cuando llegue `ledger` es tocar la ruta y nada más.
 
 ### Datos de mercado (`marketdata`)
 
