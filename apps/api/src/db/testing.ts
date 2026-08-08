@@ -48,7 +48,11 @@ export function insertCategory(db: Db, overrides: Partial<NewCategory> = {}): nu
   return row.id
 }
 
-export function insertImport(db: Db, overrides: Partial<NewImport> = {}): number {
+/** Un import necesita cuenta: la elige el usuario al subir el fichero. */
+export function insertImport(
+  db: Db,
+  overrides: Partial<NewImport> & Pick<NewImport, 'accountId'>,
+): number {
   const row = db
     .insert(imports)
     .values({ source: 'norma43', fileName: 'ejemplo.n43', ...overrides })
@@ -58,9 +62,10 @@ export function insertImport(db: Db, overrides: Partial<NewImport> = {}): number
   return row.id
 }
 
-/** Contexto mínimo para insertar movimientos: una cuenta y un import. */
+/** Contexto mínimo para insertar movimientos: una cuenta y un import suyo. */
 export function seedContext(db: Db): { accountId: number; importId: number } {
-  return { accountId: insertAccount(db), importId: insertImport(db) }
+  const accountId = insertAccount(db)
+  return { accountId, importId: insertImport(db, { accountId }) }
 }
 
 /** Contador para hashes únicos: determinista, a diferencia de un aleatorio. */

@@ -122,7 +122,7 @@ describe('invariante 7 — categoría y su origen van juntos', () => {
 describe('invariante 6 — saldo = apertura + movimientos no borrados', () => {
   it('excluye los movimientos con deleted_at del saldo', () => {
     const accountId = insertAccount(db, { openingBalanceCents: 100_000 })
-    const importId = insertImport(db)
+    const importId = insertImport(db, { accountId })
     const propio = { accountId, importId }
 
     db.insert(transactions)

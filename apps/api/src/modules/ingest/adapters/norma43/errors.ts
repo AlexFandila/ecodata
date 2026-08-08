@@ -7,7 +7,9 @@
  * silencio un extracto truncado corrompería los saldos, que el invariante 6
  * calcula sumando movimientos.
  */
-export class Norma43FormatError extends Error {
+import { SourceFormatError } from '../../ports/source-format-error'
+
+export class Norma43FormatError extends SourceFormatError {
   constructor(message: string) {
     super(message)
     this.name = 'Norma43FormatError'

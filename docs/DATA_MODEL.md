@@ -38,7 +38,9 @@ Nombres de tablas y campos en inglés. Dinero siempre como enteros en céntimos 
 - `target_amount_cents`, `target_date` (opcional), `params` (JSON: entrada %, gastos e impuestos %, retorno esperado, inflación asumida, aportación inicial…)
 
 ### imports
-- `id`, `source` (adaptador usado), `file_name`, `imported_at`, `stats` (JSON: filas leídas, insertadas, duplicadas, errores)
+- `id`, `account_id` (cuenta a la que fue el fichero: la elige el usuario al subirlo, y todos los movimientos de un import van a la misma), `source` (adaptador usado), `file_name`, `imported_at`, `stats` (JSON: filas leídas, insertadas, duplicadas, errores)
+- `read = inserted + duplicated + errors`. Lo que la fuente salta por no ser un movimiento —una fila de Revolut sin fecha de finalización, una línea en blanco— no cuenta en ninguna de las cuatro: no llegó a ocurrir.
+- Un fichero rechazado entero (mal formado, o cuyos totales no cuadran) **no** deja fila aquí: la tabla es el registro de lo importado, no un log de intentos. Un fichero que se importa entero como duplicado sí la deja, con `inserted: 0`.
 
 ### fx_rates
 - `date`, `base`, `quote`, `rate` — tipos de cambio de referencia del BCE. Solo para agregados; el importe original nunca se convierte destructivamente.
@@ -48,7 +50,7 @@ Nombres de tablas y campos en inglés. Dinero siempre como enteros en céntimos 
 
 ## Invariantes
 
-1. `source_hash` es único: reimportar el mismo fichero (o solapar CSV con Open Banking en Fase 4) no duplica movimientos. Hash sobre campos normalizados estables (cuenta + fecha + importe + contraparte + descripción), no sobre la fila cruda.
+1. `source_hash` es único: reimportar el mismo fichero (o solapar CSV con Open Banking en Fase 4) no duplica movimientos. Hash sobre campos normalizados estables, no sobre la fila cruda: **cuenta + fecha + importe + divisa + contraparte + descripción + ordinal de ocurrencia**. La divisa está porque sin ella un cambio de divisa colisiona consigo mismo; el ordinal —el n-ésimo movimiento idéntico dentro del fichero— porque dos cafés de 2,50 € el mismo día son dos movimientos y no uno. Ver ADR-012 para la receta exacta y sus contrapartidas. Lo calcula `sourceHash()` en `packages/core`, para que la Fase 4 produzca los mismos hashes que el CSV.
 2. Un movimiento pertenece como máximo a una transferencia interna.
 3. Movimientos con `transfer_id` ≠ null: categoría `internal_transfer`, **excluidos** de ingresos, gastos y presupuestos; **incluidos** en el saldo de su cuenta.
 4. `raw` nunca se modifica ni se borra: si un parser mejora, se puede re-normalizar desde ahí.

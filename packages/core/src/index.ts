@@ -2,11 +2,12 @@
  * Dominio puro: sin IO (ni ficheros, ni red, ni base de datos). Recibe datos y
  * devuelve resultados. La regla la aplica dependency-cruiser en `pnpm lint`.
  *
- * Ya vive aquí el módulo `money` (importes en céntimos y divisa). El resto del
- * dominio —matching de transferencias, motor de reglas, motor financiero— entra
- * en las fases 1 y 2.
+ * Ya viven aquí `money` (importes en céntimos y divisa) y `dedupe` (la
+ * identidad de un movimiento importado). El resto del dominio —matching de
+ * transferencias, motor de reglas, motor financiero— entra en las fases 1 y 2.
  */
 
+export * from './dedupe/index'
 export * from './money/index'
 
 export const CORE_VERSION = '0.0.0'

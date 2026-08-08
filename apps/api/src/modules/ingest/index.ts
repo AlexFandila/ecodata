@@ -4,34 +4,27 @@
  * Esto es todo lo que el resto de `apps/api` puede ver del módulo —lo demás son
  * internals y `dependency-cruiser` lo hace cumplir en `pnpm lint`—. Quien
  * importe una fuente nueva no toca nada de aquí: escribe un adaptador, lo
- * registra abajo y añade su literal a `IMPORT_SOURCES` (regla 5 de CLAUDE.md).
+ * registra en `sources.ts` y añade su literal a `IMPORT_SOURCES` (regla 5 de
+ * CLAUDE.md).
+ *
+ * Entre lo público hay un constructor de extractos sintéticos
+ * (`norma43Bytes`), para los tests de las capas de encima: hoy el borde HTTP,
+ * mañana `pnpm seed`. Sale por aquí en vez de importarse de `adapters/` a pelo
+ * porque la frontera del módulo vale también para los tests. Que un test de la
+ * ruta necesite un cuaderno 43 de verdad no es motivo para saltársela, es
+ * motivo para que el módulo ofrezca uno.
  */
-import type { ImportSource } from '@finanzas/shared'
-import { norma43Adapter } from './adapters/norma43/index'
-import { revolutCsvAdapter } from './adapters/revolut-csv/index'
-import type { TransactionSource } from './ports/transaction-source'
 
 export { Norma43FormatError } from './adapters/norma43/errors'
 export { norma43Adapter } from './adapters/norma43/index'
+export {
+  norma43Bytes,
+  type SyntheticMovement as SyntheticNorma43Movement,
+} from './adapters/norma43/testing'
 export { RevolutCsvFormatError } from './adapters/revolut-csv/errors'
 export { revolutCsvAdapter } from './adapters/revolut-csv/index'
+export { AccountNotFoundError } from './errors'
+export { type ImportOutcome, type RunImportInput, runImport } from './pipeline'
+export { SourceFormatError } from './ports/source-format-error'
 export type { SourceReadResult, TransactionSource } from './ports/transaction-source'
-
-/**
- * El selector de fuentes.
- *
- * El mapa es completo, no `Partial`: mientras `revolut_csv` tuvo literal en los
- * contratos pero no adaptador hubo que admitir el hueco, y ya no lo hay. La
- * diferencia no es cosmética —con el `Record` cerrado, **añadir un literal a
- * `IMPORT_SOURCES` sin escribir su adaptador no compila**—, así que la regla 5
- * de CLAUDE.md pasa de ser una convención a comprobarla el compilador, que es
- * lo que ADR-006 pide de este tipo de reglas.
- */
-const ADAPTERS: Record<ImportSource, TransactionSource> = {
-  norma43: norma43Adapter,
-  revolut_csv: revolutCsvAdapter,
-}
-
-export function sourceFor(source: ImportSource): TransactionSource {
-  return ADAPTERS[source]
-}
+export { sourceFor } from './sources'

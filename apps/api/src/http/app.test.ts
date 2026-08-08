@@ -1,10 +1,11 @@
 import { healthResponseSchema } from '@finanzas/shared'
 import { describe, expect, it } from 'vitest'
+import { createTestDb } from '../db/testing'
 import { createApp } from './app'
 
 describe('GET /health', () => {
   it('responde 200 con el contrato de shared', async () => {
-    const response = await createApp().request('/health')
+    const response = await createApp(createTestDb()).request('/health')
 
     expect(response.status).toBe(200)
     // Si la respuesta se saliera del contrato, el parse lanzaría aquí.
@@ -13,7 +14,7 @@ describe('GET /health', () => {
   })
 
   it('devuelve 404 en una ruta desconocida', async () => {
-    const response = await createApp().request('/no-existe')
+    const response = await createApp(createTestDb()).request('/no-existe')
 
     expect(response.status).toBe(404)
   })

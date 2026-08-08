@@ -14,9 +14,10 @@
  * 1. **Sin `accountId`.** Un adaptador lee un fichero, y un fichero no dice a
  *    qué cuenta pertenece: la elige el usuario al subirlo. La pone el pipeline.
  * 2. **Sin `sourceHash`.** El orden es normalizar → hash → deduplicar, y el
- *    invariante 1 quiere el hash sobre cuenta + fecha + importe + contraparte +
- *    descripción. La cuenta todavía no se conoce aquí, así que el hash tampoco
- *    puede calcularse aquí.
+ *    invariante 1 quiere el hash sobre la cuenta y sobre el n-ésimo movimiento
+ *    idéntico dentro del fichero (ADR-012). Ni una cosa ni la otra se conocen
+ *    aquí —la cuenta la elige el usuario, y el ordinal solo lo sabe quien ve el
+ *    lote entero—, así que el hash tampoco puede calcularse aquí.
  * 3. **Sin `categoryId`, `categorySource`, `transferId`, `deletedAt`,
  *    `importId` ni `id`.** Son estado que asignan etapas posteriores
  *    (categorización, matching de transferencias, persistencia).

@@ -122,17 +122,32 @@ export const categories = sqliteTable(
 // imports
 // ---------------------------------------------------------------------------
 
-export const imports = sqliteTable('imports', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  /** Adaptador que produjo los movimientos: `norma43`, `revolut_csv`… */
-  source: text('source').notNull(),
-  fileName: text('file_name'),
-  importedAt: integer('imported_at', { mode: 'timestamp_ms' })
-    .notNull()
-    .default(sql`(unixepoch() * 1000)`),
-  /** JSON: filas leídas, insertadas, duplicadas, errores. */
-  stats: text('stats', { mode: 'json' }).$type<ImportStats>(),
-})
+export const imports = sqliteTable(
+  'imports',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    /**
+     * Cuenta a la que fueron los movimientos del fichero.
+     *
+     * Un fichero no dice a qué cuenta pertenece: la elige el usuario al
+     * subirlo, y sin guardarla aquí no se podría listar el histórico de
+     * importaciones ni deshacer un import (invariante 5) sabiendo a qué cuenta
+     * afectó. Todos los movimientos de un import van a la misma cuenta.
+     */
+    accountId: integer('account_id')
+      .notNull()
+      .references(() => accounts.id),
+    /** Adaptador que produjo los movimientos: `norma43`, `revolut_csv`… */
+    source: text('source').notNull(),
+    fileName: text('file_name'),
+    importedAt: integer('imported_at', { mode: 'timestamp_ms' })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    /** JSON: filas leídas, insertadas, duplicadas, errores. */
+    stats: text('stats', { mode: 'json' }).$type<ImportStats>(),
+  },
+  (table) => [index('imports_cuenta_idx').on(table.accountId)],
+)
 
 // ---------------------------------------------------------------------------
 // transfers

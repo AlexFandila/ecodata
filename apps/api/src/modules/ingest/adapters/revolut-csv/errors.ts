@@ -9,7 +9,9 @@
  * fichero truncado o editado e importarlo en silencio corrompería los saldos
  * que el invariante 6 calcula sumando movimientos.
  */
-export class RevolutCsvFormatError extends Error {
+import { SourceFormatError } from '../../ports/source-format-error'
+
+export class RevolutCsvFormatError extends SourceFormatError {
   constructor(message: string) {
     super(message)
     this.name = 'RevolutCsvFormatError'
