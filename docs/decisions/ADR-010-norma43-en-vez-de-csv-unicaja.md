@@ -1,6 +1,6 @@
 # ADR-010 — La ingesta de Unicaja es Norma 43, no CSV
 
-**Estado**: aceptada · 2026-08
+**Estado**: aceptada · 2026-08 · **matizada por [ADR-011](ADR-011-ingesta-del-csv-de-revolut.md)** en dos consecuencias: el CSV de Revolut **sí** se autoverifica (columna de saldo), y su `counterparty` sí se rellena porque separa la contraparte del tipo de operación. La decisión de fondo —Unicaja se lee por Norma 43, y por qué— no cambia.
 
 ## Contexto
 ADR-004 decidió que la Fase 1 se resolvería con «adaptadores CSV de Unicaja y Revolut», y el ROADMAP y ARCHITECTURE lo dieron por hecho hasta el punto de nombrar la tarea `UnicajaCsvAdapter`. Nadie había mirado un fichero: la decisión se tomó por analogía con lo que suele exportar un banco, no por observación.

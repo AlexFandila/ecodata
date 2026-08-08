@@ -3,23 +3,29 @@
  */
 import { IMPORT_SOURCES } from '@finanzas/shared'
 import { describe, expect, it } from 'vitest'
-import { norma43Adapter, sourceFor } from './index'
+import { norma43Adapter, revolutCsvAdapter, sourceFor } from './index'
 
 describe('sourceFor', () => {
   it('devuelve el adaptador de la fuente pedida', () => {
     expect(sourceFor('norma43')).toBe(norma43Adapter)
+    expect(sourceFor('revolut_csv')).toBe(revolutCsvAdapter)
   })
 
   /**
-   * `revolut_csv` ya tiene literal en los contratos pero todavía no adaptador.
-   * Que falle diciéndolo es mejor que devolver un `undefined` que reventaría
-   * más adelante, con el import ya abierto.
+   * El compilador ya impide que un literal de `IMPORT_SOURCES` se quede sin
+   * adaptador, porque el mapa es un `Record` completo. Este test lo comprueba
+   * además en ejecución, que es lo que ve el pipeline: un `undefined` colándose
+   * por aquí reventaría con el import ya abierto.
    */
-  it('falla de forma explícita ante una fuente sin adaptador todavía', () => {
-    expect(() => sourceFor('revolut_csv')).toThrow(/Todavía no hay adaptador/)
+  it('todas las fuentes del contrato tienen adaptador', () => {
+    for (const source of IMPORT_SOURCES) {
+      expect(sourceFor(source)).toBeDefined()
+    }
   })
 
-  it('el id del adaptador es uno de los literales del contrato', () => {
-    expect(IMPORT_SOURCES).toContain(norma43Adapter.id)
+  it('cada adaptador se identifica con la fuente por la que se le pide', () => {
+    for (const source of IMPORT_SOURCES) {
+      expect(sourceFor(source).id).toBe(source)
+    }
   })
 })

@@ -24,7 +24,7 @@ Trabajar una fase cada vez, y dentro de cada fase, una tarea cada vez. Marcar ca
 - [x] Esquema Drizzle + migraciones: `accounts`, `transactions`, `categories`, `rules`, `transfers`, `imports` (ver DATA_MODEL.md)
 - [x] `packages/shared`: esquema `NormalizedTransaction` y contratos HTTP de la Fase 1 (ingesta y movimientos; reglas, transferencias y dashboard entran con su tarea — ver ADR-009)
 - [x] Puerto `TransactionSource` + `Norma43Adapter` con fixtures sintéticos y tests (Unicaja no exporta CSV sino Norma 43 de la AEB — ver ADR-010)
-- [ ] `RevolutCsvAdapter` (atención: multidivisa) con fixtures sintéticos y tests
+- [x] `RevolutCsvAdapter` (atención: multidivisa) con fixtures sintéticos y tests (el CSV está traducido y su columna de saldo se autoverifica — ver ADR-011)
 - [ ] Pipeline de importación: normalizar → hash → dedupe → persistir → log en `imports`
 - [ ] Matching de transferencias internas según DATA_MODEL.md (en `packages/core`, con tests de los casos borde)
 - [ ] Motor de reglas de categorización + semilla de categorías

@@ -63,7 +63,7 @@ Puerto: `TransactionSource` — dado un input, devuelve `NormalizedTransaction[]
 
 Adaptadores previstos, en orden:
 1. `Norma43Adapter` (Fase 1) — cuaderno 43 de la AEB, que es lo que exporta Unicaja. Al ser un estándar, sirve para cualquier banco español que lo emita: los literales de `IMPORT_SOURCES` nombran el formato, no el banco. Ver ADR-010.
-2. `RevolutCsvAdapter` (Fase 1) — export CSV de la app de Revolut (multidivisa).
+2. `RevolutCsvAdapter` (Fase 1) — export CSV de la app de Revolut: multidivisa por fila, cabecera y valores traducidos al idioma de la app, y una columna de saldo que permite verificar la lectura. Ver ADR-011.
 3. `EnableBankingAdapter` (Fase 4) — Open Banking automático. Ver ADR-004.
 
 Un fichero mal formado, o cuyos totales no cuadran con lo leído, es un error del fichero y aborta la importación. Una fila suelta ilegible no: se salta y se reporta, para que un extracto con tres apuntes raros importe los otros doscientos.
