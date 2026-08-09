@@ -85,8 +85,9 @@ Dos capas separadas a propósito:
 
 ## Frontend (PWA)
 
-- `vite-plugin-pwa`: manifest, iconos, service worker con caché básica para poder consultar el último estado sin conexión.
-- Instalable en Android (prompt nativo) y en iPhone (Compartir → Añadir a pantalla de inicio). Ver ADR-001.
+- `vite-plugin-pwa` en modo `generateSW`: manifest e iconos en `apps/web/public/`, y un service worker que **precachea el armazón** (HTML, JS, CSS, iconos) y sirve los `GET` de la API con `NetworkFirst` y 24 horas de caducidad, para poder consultar el último estado con el servidor apagado. Las escrituras no pasan por él: offline es **de solo lectura**, sin cola ni background sync. Ver ADR-017, que recoge también por qué se asume tener movimientos bancarios en el `CacheStorage` del dispositivo y por qué los iconos los genera un script propio (`pnpm icons`) en vez de `sharp`.
+- El manifest y el patrón que decide qué es «la API» viven en `src/pwa/config.ts` como datos, no como literales dentro de `vite.config.ts`: el patrón se deriva de la **misma** `VITE_API_URL` que lee `api/client.ts` —si divergieran, el service worker cachearía otra cosa— y así los dos se comprueban con tests (`src/pwa/config.test.ts`), incluido que cada icono declarado exista y mida lo que dice.
+- Instalable en Android (prompt nativo) y en iPhone (Compartir → Añadir a pantalla de inicio). Lo que iOS no saca del manifest —`apple-touch-icon` y las metas de `apple-mobile-web-app-*`— va a mano en `index.html`. Ver ADR-001.
 - Navegación inferior de 4-5 pestañas: Resumen · Movimientos · Objetivos · Aprender · Ajustes. Van cuatro montadas; *Aprender* entra con su módulo en la Fase 5.
 - Estado de servidor con TanStack Query; nada de estado global complejo mientras no haga falta.
 - Router: `react-router` en modo declarativo (`<BrowserRouter>` + `<Routes>`), sin rutas por ficheros ni build de servidor: la PWA se sirve como estáticos.

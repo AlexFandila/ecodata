@@ -52,3 +52,6 @@ data/*
 .claude/launch.json
 .claude/loop.md
 .claude/scheduled_tasks.json
+
+# Salida de vite-plugin-pwa en modo dev.
+dev-dist/

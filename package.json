@@ -15,7 +15,8 @@
     "typecheck": "pnpm -r typecheck",
     "lint": "biome check . && depcruise --config .dependency-cruiser.cjs apps packages",
     "format": "biome check --write .",
-    "hooks": "git config core.hooksPath .githooks"
+    "hooks": "git config core.hooksPath .githooks",
+    "icons": "node scripts/generate-icons.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.7",
