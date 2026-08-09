@@ -10,3 +10,4 @@
 
 export { daysBetween, isCalendarDate, tryDaysBetween } from './days'
 export { CalendarDateError } from './errors'
+export { addMonths, isCalendarMonth, monthOf, monthRange, monthsEndingAt } from './months'

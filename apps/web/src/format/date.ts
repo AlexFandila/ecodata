@@ -22,7 +22,16 @@ const FULL = new Intl.DateTimeFormat('es-ES', {
   timeZone: 'UTC',
 })
 
+const MONTH_YEAR = new Intl.DateTimeFormat('es-ES', {
+  month: 'long',
+  year: 'numeric',
+  timeZone: 'UTC',
+})
+
+const MONTH_SHORT = new Intl.DateTimeFormat('es-ES', { month: 'short', timeZone: 'UTC' })
+
 const ISO_DAY = /^(\d{4})-(\d{2})-(\d{2})$/
+const ISO_MONTH = /^(\d{4})-(\d{2})$/
 
 function toUtcDate(isoDay: string): Date | null {
   const parts = ISO_DAY.exec(isoDay)
@@ -48,4 +57,30 @@ export function formatDay(isoDay: string): string {
 export function formatFullDay(isoDay: string): string {
   const date = toUtcDate(isoDay)
   return date === null ? isoDay : FULL.format(date)
+}
+
+/** El día 1 del mes, en UTC, que es lo único que `Intl` necesita para pintarlo. */
+function toUtcMonth(isoMonth: string): Date | null {
+  const parts = ISO_MONTH.exec(isoMonth)
+  if (parts === null) return null
+
+  return new Date(Date.UTC(Number(parts[1]), Number(parts[2]) - 1, 1))
+}
+
+/**
+ * `'2026-08'` → `'agosto de 2026'`. La cabecera del dashboard.
+ *
+ * En UTC como el resto del fichero: un mes formateado en hora local se retrasa
+ * al mes anterior al oeste de Greenwich, que en un dato mensual es un error de
+ * un mes entero y no de un día.
+ */
+export function formatMonth(isoMonth: string): string {
+  const date = toUtcMonth(isoMonth)
+  return date === null ? isoMonth : MONTH_YEAR.format(date)
+}
+
+/** `'2026-08'` → `'ago'`. Para el eje de la gráfica, donde caben tres letras. */
+export function formatMonthShort(isoMonth: string): string {
+  const date = toUtcMonth(isoMonth)
+  return date === null ? isoMonth : MONTH_SHORT.format(date).replace('.', '')
 }

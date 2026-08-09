@@ -1,10 +1,10 @@
 /**
  * Módulo `ledger`: cuentas, movimientos, saldos y transferencias internas
  * (ARCHITECTURE.md). Empezó con lo mínimo que necesitaba la pantalla de
- * importación —listar cuentas y crearlas—, siguió con el listado de movimientos
- * y ahora escribe también en `transfers`, que es lo que ADR-013 punto 9 dejó
- * aplazado hasta que existiera la pantalla de revisión. Los saldos llegan con
- * su tarea.
+ * importación —listar cuentas y crearlas—, siguió con el listado de movimientos,
+ * después escribió en `transfers` lo que ADR-013 punto 9 dejó aplazado hasta que
+ * existiera la pantalla de revisión, y con el dashboard estrena los saldos y los
+ * agregados: es el primer sitio del módulo que suma en vez de listar.
  *
  * Quién escribe la **categoría** de un movimiento no está aquí sino en
  * `categorize`: este módulo es dueño de la fila, y aquel del invariante 7. La
@@ -24,6 +24,12 @@ export {
   TransactionNotFoundError,
   TransferNotFoundError,
 } from './errors'
+export {
+  type AccountBalance,
+  type LedgerSummary,
+  type SummaryQuery,
+  summarize,
+} from './summary'
 export { findTransaction, type ListTransactionsOutcome, listTransactions } from './transactions'
 export {
   type CreateManualTransferInput,

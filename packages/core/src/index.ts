@@ -3,9 +3,10 @@
  * devuelve resultados. La regla la aplica dependency-cruiser en `pnpm lint`.
  *
  * Ya viven aquí `money` (importes en céntimos y divisa), `dedupe` (la identidad
- * de un movimiento importado), `dates` (aritmética de fechas de calendario),
- * `matching` (las dos patas de una transferencia interna) y `rules` (qué
- * categoría le toca a un movimiento). El motor financiero entra en la Fase 2.
+ * de un movimiento importado), `dates` (aritmética de fechas de calendario y de
+ * meses), `matching` (las dos patas de una transferencia interna), `rules` (qué
+ * categoría le toca a un movimiento) y `summary` (los agregados del dashboard).
+ * El motor financiero entra en la Fase 2.
  */
 
 export * from './dates/index'
@@ -13,6 +14,7 @@ export * from './dedupe/index'
 export * from './matching/index'
 export * from './money/index'
 export * from './rules/index'
+export * from './summary/index'
 
 export const CORE_VERSION = '0.0.0'
 

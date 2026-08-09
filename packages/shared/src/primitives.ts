@@ -21,6 +21,21 @@ import { z } from 'zod'
 export const isoDateSchema = z.iso.date()
 
 /**
+ * Mes de calendario ISO `YYYY-MM`, sin día: la unidad en la que el dashboard
+ * agrega y navega.
+ *
+ * Es un tipo propio y no una fecha recortada porque un mes no tiene día, y
+ * fingir que lo tiene (`'2026-03-01'`) obliga a todo el que lo lea a saber que
+ * ese `01` no significa nada. La validación es la misma idea que la de
+ * `isoDateSchema`: la forma no basta, `'2026-13'` se rechaza porque ese mes no
+ * existe. Su aritmética —el rango de días del mes, el mes anterior— vive en
+ * `packages/core/src/dates/months.ts`, que es donde puede tener tests.
+ */
+export const isoMonthSchema = z
+  .string()
+  .regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Se esperaba un mes ISO YYYY-MM')
+
+/**
  * Instante en el tiempo, ISO 8601 en UTC (`2026-03-15T10:30:00Z`).
  *
  * La base guarda estos campos como epoch en milisegundos, que es lo correcto

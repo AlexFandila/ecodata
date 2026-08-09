@@ -25,6 +25,7 @@
 
 export * from './accounts'
 export * from './categories'
+export * from './dashboard'
 export * from './enums'
 export * from './errors'
 export * from './health'

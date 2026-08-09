@@ -1,0 +1,43 @@
+# ADR-016 — Agregados del dashboard: por divisa, quién los calcula y gráficos con texto al lado
+
+**Estado**: aceptada · 2026-08
+
+## Contexto
+
+El dashboard es el primer sitio del sistema que **agrega**: hasta ahora todo eran filas, contadores y listados. Agregar obliga a decidir tres cosas que ninguna tarea anterior había tenido que decidir. Qué pasa con las divisas cuando no hay tipos de cambio —`fx_rates` es de la Fase 2 y ADR-008 punto 4 prohíbe sumar importes de divisas distintas—. Quién hace la aritmética, cuando SQL sabe sumar mejor que TypeScript pero la regla 2 de CLAUDE.md manda el cálculo a `packages/core`. Y con qué signo sale un gasto cuando ya no es un movimiento sino un total.
+
+Además es la primera pantalla con gráficos, y un gráfico en una PWA son kilobytes en el bundle y un agujero de accesibilidad si se hace mal.
+
+ADR-009 dejó este contrato explícitamente aplazado: «los contratos de reglas, transferencias, categorías y dashboard **no** existen todavía: entran con su tarea del roadmap, cuando se sepa qué necesita la pantalla. Definirlos antes habría fijado formas a ciegas». Esta es esa tarea.
+
+## Decisión
+
+1. **Un agregado por divisa; ninguna suma entre divisas.** `totals` es una lista y no un número, y la divisa viaja **dentro** de cada fila de `spending` y de `evolution` en vez de anidarse un array por divisa: quien pinta filtra por la que está pintando y no desanida nada. El orden de `currencies` lo fija el servidor —la que declaran como principal más cuentas; a igualdad, código alfabético— y no cada cliente, porque la PWA y el `apps/mcp` de la Fase 3 tienen que elegir la misma, y una gráfica que cambia de divisa sola es una gráfica que se lee mal. No se ordena por importe, que sería lo obvio: un mes flojo no debería mover de sitio la divisa en la que cobras.
+
+2. **Ingreso y gasto se separan por el signo del movimiento, no por el `kind` de su categoría**, y los dos se exponen como magnitudes positivas. El único campo del contrato que puede ser negativo es `netCents`.
+
+   La consecuencia buscada es una igualdad comprobable: **Σ `spending` de un mes ≡ `expenseCents` de ese mes en `evolution`**, para cada divisa. Son dos números que se ven a la vez en la misma pantalla; si no cuadraran, el usuario no sabría a cuál creer y los dos dejarían de servir. Hay un test que lo fija en `ledger/summary.test.ts`.
+
+   Partir por signo tiene además dos efectos que partir por `kind` no tendría: los dos campos son no negativos **por construcción** —y el contrato lo impone con `nonNegativeIntSchema`, así que un error de signo revienta en la ruta en vez de pintar una barra hacia abajo—, y «sin categorizar» aparece como una categoría más, que es justo lo que un filtro por `kind` habría dejado fuera.
+
+3. **La asimetría saldo/flujo es del modelo, no del dashboard.** Una transferencia interna **no** es ingreso ni gasto (invariante 3) pero **sí** mueve el saldo de su cuenta (invariante 6): un traspaso de Unicaja a Revolut no es un gasto, pero deja menos dinero en Unicaja. Los saldos, por tanto, **no dependen del mes**: cambiar de mes mueve `spending` y `evolution` y deja `accounts` y `totals` igual. Despista un segundo y es lo correcto: «cuánto tengo» no tiene mes.
+
+4. **SQL agrupa, `core` compone, la ruta nombra.** El `GROUP BY` y los `WHERE` de los invariantes 3, 5 y 6 viven en `ledger/summary.ts`: un `SUM` sobre enteros es exacto, es lo que SQLite hace mejor, y con la divisa dentro del grupo la base no puede mezclar dos. Son filtros de consulta, exactamente igual que en ADR-013 punto 4 y ADR-014 punto 5. `packages/core` se queda lo que SQL no sabe hacer y sí falla en silencio: la aritmética de meses (`dates/months.ts`), el orden de las divisas, el relleno de la ventana y el plegado de las hijas en su madre (`summary/`). No es ceremonia: es lo que el servidor MCP de la Fase 3 va a importar en vez de reimplementar, porque ARCHITECTURE.md ya le promete `get_monthly_summary`, `get_spending_by_category` y `get_net_worth`. El nombre y el icono de cada categoría los añade **la ruta**, juntando `ledger` y `categorize` (ADR-014 punto 7): un `LEFT JOIN categories` dentro de `ledger` sería una consulta menos a cambio de meter en el módulo de los saldos una tabla cuya semántica no gobierna, y para algo que es puro adorno de presentación.
+
+5. **El gasto se agrupa por categoría madre, con el desglose por hija dentro de cada fila.** Es cobrar la decisión que ADR-014 ya había tomado en su última consecuencia —«el dashboard móvil enseña el gasto agrupado por la madre y el detalle por la hija, y un tercer nivel no cabría en pantalla»—: nueve barras en vez de las treinta y tantas hojas del árbol, sin perder el detalle, que viaja en `children`.
+
+6. **El reloj entra por `createApp(db, { today })`**, igual que `holderNames`. Ninguna ruta lee su propia configuración, y el mes por defecto pasa a ser una aserción de verdad en lugar de una tautología. El valor por defecto mira la hora **local** y no UTC: «este mes» es el mes del usuario, y la diferencia se nota exactamente el día 1 de madrugada, que es cuando peor sienta abrir la app y ver el mes pasado. No contradice el `format/date.ts` de la web, que formatea en UTC: allí la pregunta es «qué día es esta fila» y aquí «qué día es hoy para quien mira».
+
+7. **Todo gráfico va `aria-hidden` y con su equivalente en lista o tabla dentro del mismo componente.** No es una convención para poder testear: un SVG de barras no le dice nada a un lector de pantalla, y en 390 px una etiqueta dentro de una barra no cabe, así que la lista es también lo que de verdad se lee con el pulgar. Que las dos mitades salgan del mismo componente es lo que impide enviar una sin la otra (mismo criterio que ADR-006: garantías mecánicas, no promesas). Los tests asertan sobre la lista y la tabla, **nunca** sobre el SVG, y los gráficos **no** se sustituyen por un mock: montarlos de verdad es lo único que detecta que revientan al montarse.
+
+   Corolario de color: `emerald` y `rose` significan **signo** en toda la app —son los del listado de movimientos— y aquí significan lo mismo. Para magnitud sin signo, `sky`. Un gasto por categoría no lleva ocho colores: son barras de un solo color, porque lo que se compara es la longitud y una paleta categórica solo añadiría una leyenda que descifrar.
+
+## Consecuencias
+
+- Queda escrito el contrato que ADR-009 aplazó. `packages/shared/src/dashboard.ts` cierra la lista de contratos de la Fase 1, y `primitives.ts` gana `isoMonthSchema`.
+- `packages/core` estrena el área `summary/`, y `dates/` gana la aritmética de meses que su propio comentario de cabecera ya anunciaba («los agregados mensuales del dashboard y el motor financiero la van a querer»). `monthsEndingAt` se llama así y no `previousMonths` porque «previous» se lee como excluyente, y de esa duda salen ventanas de cinco meses o de siete.
+- `core` y `shared` pasan a nombrar igual tres tipos (`CurrencyTotal`, `MonthFlow`, `CategorySpending`): uno es el cálculo y el otro el contrato. El único sitio que ve los dos es `http/routes/dashboard.ts`, y allí los de `core` entran con alias. Es la frontera que esa ruta cruza, así que el roce está donde debe.
+- **La decisión 1 es la que `fx_rates` va a revisar.** Cuando la Fase 2 traiga tipos de cambio, el total convertido será un campo **añadido** y opcional, nunca una sustitución: el importe original no se convierte destructivamente (DATA_MODEL.md). Merecerá una nota aquí, no un ADR nuevo.
+- La decisión 2 significa que el dashboard **no** enseña gasto neto de devoluciones por categoría: una devolución en «supermercado» aparece como ingreso del mes en vez de rebajar esa categoría. Es la misma convención con la que el listado de movimientos pinta en verde o en rosa según el signo, así que no introduce una lectura nueva. Si algún día hiciera falta, es un campo más (`refundsCents`), no un cambio de signo.
+- `apps/web` gana su primera dependencia pesada. Medido con `pnpm build`: recharts añade **315 kB sin comprimir / 94 kB gzip** sobre los 115 kB gzip que pesaba la app, que pasa a 209 kB gzip. Vite avisa de que el chunk supera los 500 kB sin comprimir. Se asume por ahora —la información de la pantalla son los números, y esos se pintan sin él—, con dos salidas escritas por si la tarea de la PWA la siguiente del roadmap decide que estorba: `React.lazy` sobre los dos gráficos, o escribir el SVG a mano y quitar la dependencia, que es posible sin perder nada porque la lista y la tabla accesibles ya llevan toda la información. Que esa segunda salida exista es lo que hace que la decisión no sea irreversible.
+- `AppOptions` gana `today`, así que cualquier ruta futura que necesite el reloj ya tiene por dónde recibirlo en vez de llamar a `new Date()` por su cuenta.
