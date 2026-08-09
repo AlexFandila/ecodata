@@ -7,11 +7,14 @@
  */
 import {
   CURRENCY_CODES as coreCurrencies,
+  TRANSFER_MATCH_SIGNALS as coreMatchSignals,
   RULE_MATCH_TYPES as coreMatchTypes,
   RULE_FIELDS as coreRuleFields,
 } from '@finanzas/core'
 import {
+  CATEGORY_SOURCES as sharedCategorySources,
   CURRENCY_CODES as sharedCurrencies,
+  TRANSFER_MATCH_SIGNALS as sharedMatchSignals,
   RULE_MATCH_TYPES as sharedMatchTypes,
   RULE_FIELDS as sharedRuleFields,
 } from '@finanzas/shared'
@@ -371,5 +374,50 @@ describe('reglas — coherencia entre paquetes', () => {
         ).not.toThrow()
       }
     }
+  })
+})
+
+/**
+ * La tercera lista duplicada, por el mismo motivo que las otras dos: las
+ * señales del matching las produce `packages/core` y las enseña la pantalla de
+ * revisión a través del contrato de `packages/shared`, que no puede importar de
+ * core. Añadir una señal en un lado y olvidarla en el otro dejaría a la interfaz
+ * sin saber traducir algo que la base ya guarda.
+ */
+describe('señales del matching — coherencia entre paquetes', () => {
+  it('shared y core conocen exactamente las mismas', () => {
+    expect([...sharedMatchSignals].sort()).toEqual([...coreMatchSignals].sort())
+  })
+
+  it('el orden canónico también coincide: es el que se enseña en pantalla', () => {
+    expect([...sharedMatchSignals]).toEqual([...coreMatchSignals])
+  })
+})
+
+/**
+ * `category_source` ganó `'transfer'` con la pantalla de revisión (ADR-015): la
+ * categoría de una pata la impone el invariante 3 y no la puso ninguna regla.
+ */
+describe('origen de categoría — el CHECK y la lista de shared', () => {
+  it('la base acepta los cuatro orígenes', () => {
+    const categoryId = insertCategory(db, { slug: 'origenes' })
+
+    for (const source of sharedCategorySources) {
+      expect(() =>
+        insertTransaction({ categoryId, categorySource: source, sourceHash: `hash-${source}` }),
+      ).not.toThrow()
+    }
+  })
+
+  it('y sigue rechazando uno inventado', () => {
+    const categoryId = insertCategory(db, { slug: 'origen-inventado' })
+
+    expect(() =>
+      insertTransaction({
+        categoryId,
+        categorySource: sinTipar('adivinado'),
+        sourceHash: 'hash-origen-inventado',
+      }),
+    ).toThrow(/CHECK/i)
   })
 })

@@ -15,14 +15,15 @@ Nombres de tablas y campos en inglés. Dinero siempre como enteros en céntimos 
 - `amount_cents` (entero, negativo = cargo), `currency`
 - `counterparty` (texto normalizado), `description`
 - `category_id` (nullable), `transfer_id` (nullable — si forma parte de una transferencia interna)
-- `category_source` (`rule` | `manual` | `suggestion`; `null` si no hay categoría) — quién puso `category_id`; protege lo manual de la recategorización automática (invariante 7)
+- `category_source` (`rule` | `manual` | `suggestion` | `transfer`; `null` si no hay categoría) — quién puso `category_id`; protege lo manual de la recategorización automática (invariante 7). `transfer` es la categoría que impone una transferencia interna por el invariante 3: existe como valor propio, y no reutilizando `rule`, para que las patas queden fuera de la recategorización automática por dos vías independientes y para que la interfaz no atribuya a una regla algo que ninguna regla puso (ADR-015)
 - `deleted_at` (timestamp, nullable) — soft-delete; `null` = movimiento vivo (invariante 5)
 - `import_id`, `source_hash` (UNIQUE — clave de deduplicación), `raw` (JSON con la fila original tal cual)
 
 ### transfers
 - `id`, `out_txn_id`, `in_txn_id` (cargo y abono enlazados)
-- `status`: `auto` (emparejada por heurística) | `confirmed` (validada por el usuario) | `manual` (creada a mano)
-- `matched_by` (texto: qué señales dispararon el emparejamiento, para depurar)
+- `status`: `auto` (emparejada por heurística) | `confirmed` (validada por el usuario) | `manual` (creada a mano). No hay `rejected`: rechazar un emparejamiento es borrar la fila, porque si quedara, sus dos patas seguirían ocupadas y la heurística no volvería a mirarlas (ADR-015)
+- `matched_by` (qué señales dispararon el emparejamiento, para depurar y para explicárselo al usuario en la pantalla de revisión): JSON con los literales de `TRANSFER_MATCH_SIGNALS`, `null` en las manuales. Al leerlo se filtra contra la lista cerrada, no se confía en lo que haya en disco
+- Quien escribe esta tabla es el módulo `ledger`, y siempre en la misma transacción que el `transfer_id` y la categoría de las dos patas: el invariante 3 no admite un estado intermedio
 
 ### categories
 - `id`, `slug` (UNIQUE — identificador estable independiente del nombre visible: el código referencia `internal_transfer` por aquí, no por un id que la semilla podría renumerar)
@@ -53,11 +54,11 @@ Nombres de tablas y campos en inglés. Dinero siempre como enteros en céntimos 
 
 1. `source_hash` es único: reimportar el mismo fichero (o solapar CSV con Open Banking en Fase 4) no duplica movimientos. Hash sobre campos normalizados estables, no sobre la fila cruda: **cuenta + fecha + importe + divisa + contraparte + descripción + ordinal de ocurrencia**. La divisa está porque sin ella un cambio de divisa colisiona consigo mismo; el ordinal —el n-ésimo movimiento idéntico dentro del fichero— porque dos cafés de 2,50 € el mismo día son dos movimientos y no uno. Ver ADR-012 para la receta exacta y sus contrapartidas. Lo calcula `sourceHash()` en `packages/core`, para que la Fase 4 produzca los mismos hashes que el CSV.
 2. Un movimiento pertenece como máximo a una transferencia interna.
-3. Movimientos con `transfer_id` ≠ null: categoría `internal_transfer`, **excluidos** de ingresos, gastos y presupuestos; **incluidos** en el saldo de su cuenta.
+3. Movimientos con `transfer_id` ≠ null: categoría `internal_transfer` con `category_source = 'transfer'`, **excluidos** de ingresos, gastos y presupuestos; **incluidos** en el saldo de su cuenta. Esa categoría la escribe el módulo `ledger` —es la única que no pone `categorize`— y ni las reglas ni el `PATCH` de categoría manual la pueden tocar mientras la transferencia exista. Deshacerla devuelve las dos patas a `(null, null)` y a la bandeja de pendientes.
 4. `raw` nunca se modifica ni se borra: si un parser mejora, se puede re-normalizar desde ahí.
 5. Borrar un import nunca es un `DELETE` físico: marca `deleted_at` en sus movimientos. **Toda consulta —saldos, agregados, listados, tools MCP— excluye por defecto los movimientos con `deleted_at` ≠ null**; restaurar es volver a ponerlo a `null`. Si se borra una de las dos patas de una transferencia interna, la `transfer` se deshace: la otra pata queda con `transfer_id = null` y vuelve a ser candidata al matching.
 6. Saldo de una cuenta = `opening_balance_cents` + Σ `amount_cents` de sus movimientos no borrados. Las transferencias internas sí suman aquí (invariante 3); los borrados no (invariante 5).
-7. `category_source` manda sobre la automatización: las reglas y las recategorizaciones en bloque solo escriben donde `category_id` es null o `category_source = 'rule'`. Una categoría puesta a mano (`manual`) no se pisa jamás automáticamente.
+7. `category_source` manda sobre la automatización: las reglas y las recategorizaciones en bloque solo escriben donde `category_id` es null o `category_source = 'rule'`. Una categoría puesta a mano (`manual`) o por una transferencia (`transfer`) no se pisa jamás automáticamente.
 
 ## Notas de implementación (esquema Drizzle)
 
@@ -84,10 +85,14 @@ El +2 se suma una sola vez aunque coincidan el proveedor y el titular: puntúa e
 
 **Resultado**: crear `transfer` con `status = auto` y anotar señales en `matched_by`. El usuario puede confirmar, deshacer (los movimientos vuelven a ser normales) o emparejar manualmente desde la UI.
 
+**Quién lo escribe y cuándo**: `recordInternalTransfers()` del módulo `ledger`, encadenado por la ruta `POST /imports` detrás de la categorización, y disponible también como `POST /transfers/match` para volver a pasarlo sin importar nada (después de deshacer, o cuando los dos extractos de un traspaso se importaron con días de diferencia). Corre siempre sobre **toda** la población sin emparejar, nunca solo sobre lo recién insertado. El nombre del titular llega por la variable de entorno `HOLDER_NAMES` y los alias de cada cuenta se construyen desde su `provider` y su `name` (ADR-015).
+
+**Emparejado manual**: comprueba el estado —cuentas propias distintas, un cargo y un abono, ninguna pata pillada ya, los dos movimientos vivos— y **no** los criterios de la heurística. No exige importes opuestos, ni misma divisa, ni fechas cercanas: los pares que cumplen eso ya los empareja la máquina sola, y exigirlo dejaría el emparejado manual sin ningún caso que resolver.
+
 **Casos borde conocidos**:
-- Recarga de Revolut con tarjeta: en Unicaja aparece como pago de tarjeta con otro formato; a menudo no cumple (b) o (d) limpiamente → emparejado manual + posibilidad de crear una regla que categorice como `internal_transfer`.
+- Recarga de Revolut con tarjeta: en Unicaja aparece como pago de tarjeta con otro formato; a menudo no cumple (b) o (d) limpiamente → emparejado manual, que precisamente por eso no exige que los importes cuadren.
 - Transferencias parciales o divididas: fuera de alcance de la v1; se resuelven a mano.
-- Distinta divisa entre patas: fuera de alcance de la v1 (requeriría tolerancia con `fx_rates`).
+- Distinta divisa entre patas: fuera del alcance de la heurística (requeriría tolerancia con `fx_rates`); a mano sí se pueden emparejar.
 
 ## Pipeline de categorización
 
@@ -110,5 +115,6 @@ Cómo, y por qué así (`apps/api/src/seed/`):
 - **No inserta filas: genera ficheros.** `synthetic.ts` construye un cuaderno 43 y un CSV de Revolut con los constructores sintéticos que ya usan los tests de cada adaptador, y `run.ts` los pasa por el `runImport()` de producción. Así la base de desarrollo tiene el mismo `raw`, el mismo `source_hash` y las mismas filas en `imports` que tendría con ficheros de verdad, y la semilla vale además de prueba de humo del pipeline entero.
 - **Idempotente sin inventarse nada.** Cuentas por nombre, reglas por su terna (campo, tipo, patrón), objetivos por nombre, y movimientos por el `UNIQUE(source_hash)` del invariante 1: la segunda pasada reporta `inserted: 0` y deja una fila más en `imports`, exactamente como un fichero reimportado. `pnpm seed --reset` borra la base y la recrea, y se niega a borrar nada que no cuelgue de `.dev/`.
 - **Determinista, pero con fechas frescas.** El generador es puro y no lee el reloj: recibe la fecha final como parámetro. El CLI le pasa hoy —para que el dashboard tenga movimientos del mes en curso, cortados en la fecha de hoy— y los tests una fecha fija. La misma fecha produce siempre los mismos bytes.
-- **Deja trabajo a medio hacer, a propósito.** Un bizum, un adeudo y un pago QR no casan con ninguna regla, para que la bandeja de «sin categorizar» tenga contenido. Y las patas de las transferencias tampoco: la semilla **no escribe en `transfers`** —eso es del módulo `ledger`—, solo deja traspasos que el matcher pueda casar (cada uno de importe distinto, porque los empates los descarta) y cuenta cuántos casaría a modo de diagnóstico.
+- **Deja trabajo a medio hacer, a propósito.** Un bizum, un adeudo y un pago QR no casan con ninguna regla, para que la bandeja de «sin categorizar» tenga contenido.
+- **Y empareja las transferencias, como haría la ruta de importación.** La semilla llama a `recordInternalTransfers()` detrás de categorizar, así que la base de desarrollo tiene transferencias en estado `auto` que revisar desde el primer `pnpm seed`. Los traspasos sintéticos son todos de importe distinto, porque los empates el matcher los deja sin resolver a propósito.
 - Ninguna cuenta lleva IBAN: uno español en un fichero versionado lo rechazaría el propio hook pre-commit (ADR-006), y para desarrollar no aporta nada.

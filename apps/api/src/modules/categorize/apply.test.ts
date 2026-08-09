@@ -200,6 +200,30 @@ describe('categorizeTransactions · movimientos que quedan fuera', () => {
   })
 })
 
+describe('categorizeTransactions · acotado a unos movimientos', () => {
+  it('solo toca los que se le indican', () => {
+    const acotado = insertTransaction({ counterparty: 'SUPERMERCADO EJEMPLO' })
+    const otro = insertTransaction({ counterparty: 'SUPERMERCADO EJEMPLO' })
+    insertRule(db, { categoryId: supermercado, pattern: 'SUPERMERCADO' })
+
+    const resultado = categorizeTransactions(db, { transactionIds: [acotado] })
+
+    expect(resultado.categorized).toBe(1)
+    expect(categoriaDe(acotado).categoryId).toBe(supermercado)
+    expect(categoriaDe(otro).categoryId).toBeNull()
+  })
+
+  it('una lista vacía no es «todos»: es que no hay nada que hacer', () => {
+    const id = insertTransaction({ counterparty: 'SUPERMERCADO EJEMPLO' })
+    insertRule(db, { categoryId: supermercado, pattern: 'SUPERMERCADO' })
+
+    const resultado = categorizeTransactions(db, { transactionIds: [] })
+
+    expect(resultado).toEqual({ scanned: 0, categorized: 0, cleared: 0, invalidRules: [] })
+    expect(categoriaDe(id).categoryId).toBeNull()
+  })
+})
+
 describe('categorizeTransactions · reglas rotas', () => {
   it('salta la regla con el patrón roto, avisa, y aplica las demás', () => {
     // Una regla mala guardada hace meses no puede impedir importar hoy.

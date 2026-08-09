@@ -5,7 +5,7 @@
 import { errorResponseSchema, importResultResponseSchema } from '@finanzas/shared'
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { Db } from '../../db/client'
-import { transactions } from '../../db/schema'
+import { INTERNAL_TRANSFER_SLUG, transactions, transfers } from '../../db/schema'
 import { createTestDb, insertAccount, insertCategory, insertRule } from '../../db/testing'
 import {
   norma43Bytes,
@@ -245,5 +245,76 @@ describe('POST /imports · categorización', () => {
     expect(response.status).toBe(201)
     const body = importResultResponseSchema.parse(await response.json())
     expect(body.stats.inserted).toBe(1)
+  })
+})
+
+describe('POST /imports · emparejado de transferencias internas', () => {
+  /** Un extracto de un solo cargo o abono, para la cuenta que se indique. */
+  function traspasoDe(amountCents: number, concepto: string) {
+    return new File(
+      [norma43Bytes({ movements: [{ amountCents, concepts: [{ first: concepto }] }] })],
+      'traspaso.n43',
+    )
+  }
+
+  it('empareja la pata que llega hoy con la que se importó antes', async () => {
+    // Es la última etapa del pipeline, y corre sobre toda la población sin
+    // emparejar: la otra pata entró en una importación anterior (ADR-013).
+    insertCategory(db, {
+      slug: INTERNAL_TRANSFER_SLUG,
+      name: 'Transferencia interna',
+      kind: 'internal',
+    })
+    const revolut = insertAccount(db, { name: 'Revolut', provider: 'revolut', type: 'card' })
+
+    await post({
+      file: traspasoDe(-20_000, 'TRANSF A REVOLUT'),
+      accountId: String(accountId),
+      source: 'norma43',
+    })
+    // Con una sola pata no hay nada que emparejar.
+    expect(db.select().from(transfers).all()).toHaveLength(0)
+
+    await post({
+      file: traspasoDe(20_000, 'INGRESO DESDE UNICAJA'),
+      accountId: String(revolut),
+      source: 'norma43',
+    })
+
+    const emparejadas = db.select().from(transfers).all()
+    expect(emparejadas).toHaveLength(1)
+    expect(emparejadas[0]?.status).toBe('auto')
+
+    // Invariante 3: las dos patas quedan fuera del listado de movimientos.
+    const listado = (await (await app.request('/transactions')).json()) as { total: number }
+    expect(listado.total).toBe(0)
+  })
+
+  it('la categoría de la transferencia gana a la que hubiera puesto una regla', async () => {
+    insertCategory(db, {
+      slug: INTERNAL_TRANSFER_SLUG,
+      name: 'Transferencia interna',
+      kind: 'internal',
+    })
+    const otra = insertCategory(db, { slug: 'groceries', name: 'Supermercado' })
+    insertRule(db, { categoryId: otra, field: 'description', pattern: 'TRANSF' })
+    const revolut = insertAccount(db, { name: 'Revolut', provider: 'revolut', type: 'card' })
+
+    await post({
+      file: traspasoDe(-20_000, 'TRANSF A REVOLUT'),
+      accountId: String(accountId),
+      source: 'norma43',
+    })
+    await post({
+      file: traspasoDe(20_000, 'TRANSF DESDE UNICAJA'),
+      accountId: String(revolut),
+      source: 'norma43',
+    })
+
+    const orígenes = db
+      .select({ categorySource: transactions.categorySource })
+      .from(transactions)
+      .all()
+    expect(orígenes.every((fila) => fila.categorySource === 'transfer')).toBe(true)
   })
 })

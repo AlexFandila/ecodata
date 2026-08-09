@@ -62,8 +62,8 @@ for (const result of outcome.imports) {
 const pending = outcome.transactions.total - outcome.transactions.categorized
 console.log(`
   Movimientos  ${outcome.transactions.total} vivos: ${outcome.transactions.categorized} categorizados, ${pending} en la bandeja
-  Traspasos    ${outcome.matchable.pairs} pares emparejables, ${outcome.matchable.unresolved} ambiguos
-               (no se escriben en 'transfers': eso es del módulo ledger)
+  Traspasos    ${outcome.transfers.created} transferencias internas nuevas, ${outcome.transfers.unresolved} ambiguas
+               (las nuevas quedan en estado 'auto', para revisarlas en la app)
 `)
 
 if (outcome.imports.some((result) => result.stats.errors > 0)) {

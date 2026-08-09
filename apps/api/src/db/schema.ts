@@ -24,6 +24,7 @@ import {
   type ImportStats,
   RULE_FIELDS,
   RULE_MATCH_TYPES,
+  TRANSFER_STATUSES,
 } from '@finanzas/shared'
 import { sql } from 'drizzle-orm'
 import type { AnySQLiteColumn } from 'drizzle-orm/sqlite-core'
@@ -45,16 +46,14 @@ function isoDate(column: string) {
 }
 
 /**
- * Las dos listas de literales que todavía no tienen ningún contrato de
- * `shared`: las usa solo la base de datos. Se mudan a
- * `packages/shared/src/enums.ts` en cuanto llegue su tarea del roadmap —la
- * pantalla de revisión de transferencias y los objetivos de la Fase 2— y tengan
- * que verlas también la PWA o el MCP. `ACCOUNT_PROVIDERS`, `ACCOUNT_TYPES`,
- * `CATEGORY_KINDS`, `CATEGORY_SOURCES`, `CURRENCY_CODES`, `RULE_FIELDS` y
- * `RULE_MATCH_TYPES` ya hicieron ese viaje y se importan de arriba.
+ * La única lista de literales que todavía no tiene ningún contrato de `shared`:
+ * la usa solo la base de datos. Se muda a `packages/shared/src/enums.ts` en
+ * cuanto llegue su tarea del roadmap —los objetivos de la Fase 2— y tenga que
+ * verla también la PWA o el MCP. `ACCOUNT_PROVIDERS`, `ACCOUNT_TYPES`,
+ * `CATEGORY_KINDS`, `CATEGORY_SOURCES`, `CURRENCY_CODES`, `RULE_FIELDS`,
+ * `RULE_MATCH_TYPES` y `TRANSFER_STATUSES` ya hicieron ese viaje y se importan
+ * de arriba.
  */
-export const TRANSFER_STATUSES = ['auto', 'confirmed', 'manual'] as const
-
 export const GOAL_TYPES = ['house', 'car', 'emergency_fund', 'custom'] as const
 
 /** Slug de la categoría del sistema a la que van las transferencias internas. */

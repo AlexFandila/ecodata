@@ -9,8 +9,10 @@
  * es propiedad del formato (el cuaderno 43 viene en latin-1 y el CSV de Revolut
  * en UTF-8) y lo decide el adaptador, que es quien lo conoce.
  *
- * La ruta es además quien **orquesta** las etapas del pipeline: importar y, con
- * lo importado, categorizar. Los módulos no se llaman entre sí.
+ * La ruta es además quien **orquesta** las etapas del pipeline: importar,
+ * categorizar lo importado y emparejar las transferencias internas. Los módulos
+ * no se llaman entre sí, así que `ingest` sigue sin saber que existen
+ * `categorize` ni `ledger`.
  */
 import {
   createImportRequestSchema,
@@ -21,12 +23,18 @@ import { Hono } from 'hono'
 import type { Db } from '../../db/client'
 import { categorizeTransactions } from '../../modules/categorize/index'
 import { AccountNotFoundError, runImport, SourceFormatError } from '../../modules/ingest/index'
+import { recordInternalTransfers } from '../../modules/ledger/index'
 import { errorJson } from '../errors'
 
 /** Campo del formulario que lleva el fichero. La PWA se ata a este nombre. */
 const FILE_FIELD = 'file'
 
-export function createImportsRoutes(db: Db) {
+export type ImportsRoutesOptions = {
+  /** Nombres del titular para la señal de +2 del matching. Ver `AppOptions`. */
+  readonly holderNames: readonly string[]
+}
+
+export function createImportsRoutes(db: Db, { holderNames }: ImportsRoutesOptions) {
   const routes = new Hono()
 
   routes.post('/', async (c) => {
@@ -80,6 +88,18 @@ export function createImportsRoutes(db: Db) {
       // que es un estado correcto. Deshacer el import sería perder datos por
       // un problema de una etiqueta.
       categorizeTransactions(db, { importId: outcome.importId })
+
+      // Última etapa: emparejar transferencias internas. Sobre **toda** la
+      // población sin emparejar y no solo sobre lo recién importado, porque el
+      // punto fijo sobre un subconjunto no es la restricción del punto fijo
+      // sobre el conjunto entero: el extracto que acaba de entrar puede traer
+      // la otra pata de un traspaso importado hace un mes (ADR-013).
+      //
+      // Va después de categorizar y no antes: escribe `internal_transfer`
+      // encima de lo que hubieran puesto las reglas, que es lo que manda el
+      // invariante 3, y hacerlo al revés dejaría a una regla la última palabra
+      // sobre una pata.
+      recordInternalTransfers(db, { holderNames })
 
       return c.json(
         importResultResponseSchema.parse({

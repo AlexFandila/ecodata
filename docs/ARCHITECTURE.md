@@ -42,9 +42,9 @@ finanzas-app/
 
 ## Contratos (`packages/shared`)
 
-Ser la hoja del grafo de dependencias es lo que convierte a `shared` en punto de encuentro: al no importar de `core` ni de las apps, pueden colgar de él la base de datos, la API, la PWA y el servidor MCP sin arrastrarse entre sí. De ahí que sea también **dueño de las listas de literales que cruzan fronteras** (divisas, proveedores y tipos de cuenta, tipo y origen de categoría, campo y comparación de una regla, adaptadores de importación): están en `src/enums.ts` y el esquema Drizzle las importa de ahí en vez de tener su propia copia. Las dos que todavía solo usa la base de datos, `TRANSFER_STATUSES` y `GOAL_TYPES`, siguen en `apps/api/src/db/schema.ts` y se mudarán cuando tengan contrato.
+Ser la hoja del grafo de dependencias es lo que convierte a `shared` en punto de encuentro: al no importar de `core` ni de las apps, pueden colgar de él la base de datos, la API, la PWA y el servidor MCP sin arrastrarse entre sí. De ahí que sea también **dueño de las listas de literales que cruzan fronteras** (divisas, proveedores y tipos de cuenta, tipo y origen de categoría, campo y comparación de una regla, adaptadores de importación, estados y señales de una transferencia interna): están en `src/enums.ts` y el esquema Drizzle las importa de ahí en vez de tener su propia copia. La única que todavía solo usa la base de datos, `GOAL_TYPES`, sigue en `apps/api/src/db/schema.ts` y se mudará cuando tenga contrato.
 
-Las listas duplicadas son dos, y por el mismo motivo: `packages/core` necesita las divisas con sus decimales (ADR-008) y necesita saber qué campos y comparaciones admite una regla (ADR-014), pero no puede importar de `shared`. La coherencia la fijan sendos tests en `apps/api`, el único paquete que depende de los dos.
+Las listas duplicadas son tres, y por el mismo motivo: `packages/core` necesita las divisas con sus decimales (ADR-008), necesita saber qué campos y comparaciones admite una regla (ADR-014) y es quien produce las señales del matching de transferencias (ADR-013), pero no puede importar de `shared`. La coherencia la fijan sendos tests en `apps/api`, el único paquete que depende de los dos.
 
 Convenciones comunes a todos los contratos (ADR-009):
 
@@ -69,7 +69,7 @@ Adaptadores previstos, en orden:
 
 Un fichero mal formado, o cuyos totales no cuadran con lo leído, es un error del fichero y aborta la importación. Una fila suelta ilegible no: se salta y se reporta, para que un extracto con tres apuntes raros importe los otros doscientos.
 
-El pipeline común (normalizar → hash → deduplicar → persistir → categorizar → emparejar transferencias) es único e independiente del adaptador. Las tres primeras etapas son de `ingest` y la de categorizar es de `categorize`; **quien las encadena es la ruta HTTP, no los módulos entre sí** (ADR-014, punto 7). Así `ingest` no sabe que existe la categorización, y añadir la etapa de transferencias cuando llegue `ledger` es tocar la ruta y nada más.
+El pipeline común (normalizar → hash → deduplicar → persistir → categorizar → emparejar transferencias) es único e independiente del adaptador. Las tres primeras etapas son de `ingest`, la de categorizar es de `categorize` y la de emparejar es de `ledger`; **quien las encadena es la ruta HTTP, no los módulos entre sí** (ADR-014, punto 7). Así `ingest` no sabe que existen ninguno de los otros dos. El emparejado va el último y no antes de categorizar: escribe `internal_transfer` encima de lo que hubieran puesto las reglas, que es lo que manda el invariante 3 (ADR-015).
 
 ### Datos de mercado (`marketdata`)
 
@@ -95,7 +95,7 @@ Dos capas separadas a propósito:
 Estructura de `apps/web/src`:
 
 - `api/` — el único sitio que habla con la API. `client.ts` traduce el contrato de error de ADR-009 a un `ApiError` que **conserva el `code`**, para que las pantallas decidan por el código y no por el texto; los demás ficheros son un módulo por recurso y validan la respuesta con el esquema de `shared`.
-- `screens/` — una pantalla por ruta. `components/` — lo compartido entre pantallas (`AppLayout`, `TabBar`, `Screen`, `Field`, `Notice`).
+- `screens/` — una pantalla por ruta. `components/` — lo compartido entre pantallas (`AppLayout`, `TabBar`, `Screen`, `Field`, `Notice`, `Tabs`). `TabBar` es la navegación de la app; `Tabs` es el control segmentado que reparte una sección en vistas («Todos · Sin categorizar · Transferencias»), y distingue `TabButton` —cambia un filtro de la pantalla en la que ya estás— de `TabLink` —te lleva a otra ruta—, porque un enlace disfrazado de botón se come el «abrir en otra pestaña» y el botón atrás deja de deshacer.
 - `format/` — pintar importes y fechas. Existe porque `apps/web` **no puede importar `packages/core`**, donde vive `formatMoney`: la regla `web-only-shared` se lo prohíbe. Las dos salidas obvias eran duplicar aquí la tabla de divisas o mudar `CURRENCIES` a `shared`, que es lo que ADR-009 avisa que exigiría revisar `shared-is-leaf` y merecería su propio ADR. No hace falta ninguna: **los decimales de cada divisa los sabe el propio `Intl`** (`resolvedOptions().maximumFractionDigits`), así que no hay lista que mantener ni decisión que revisar. Las fechas de calendario se trocean y se formatean en UTC, porque pasarlas por `new Date(iso)` y formatearlas en la zona local las retrasa un día al oeste de Greenwich —el desfase que DATA_MODEL.md evita guardándolas como texto—.
 - Tests de UI con Vitest en entorno jsdom y Testing Library, junto al componente (`X.test.tsx`), simulando `fetch`. No hay servidor de mentira: el cliente HTTP es un único punto de entrada y basta con `vi.stubGlobal`.
 
@@ -111,7 +111,7 @@ Reglas: solo lectura por defecto; si algún día se añade escritura (crear regl
 
 ## Seguridad y datos sensibles
 
-- Secretos en `.env` (nunca en código, nunca en git); `env.example` documenta las variables necesarias.
+- Secretos en `.env` (nunca en código, nunca en git); `env.example` documenta las variables necesarias. Ahí vive también lo que no es un secreto pero sí dato personal: `HOLDER_NAMES`, las variantes del nombre del titular que el matching de transferencias reconoce en los extractos (ADR-013 decisión 5). Se lee una sola vez, en el arranque, y viaja por parámetro hasta las rutas —`createApp(db, { holderNames })`— para que ninguna se lea su propia configuración por su cuenta.
 - Defensa en capas durante el desarrollo con Claude Code (ver ADR-006): el sandbox a nivel de sistema operativo es el muro real (cubre también subprocesos), las reglas `deny` de `.claude/settings.json` son la primera capa (`.env`, `data/`), el modo plan por defecto impide editar sin aprobación, dependency-cruiser convierte las fronteras de módulos en error de lint, y el hook pre-commit (lint + typecheck + escaneo de IBANs) es el suelo en git. `/revisar` queda como capa semántica para lo que exige juicio.
 - La API escucha solo en localhost o en la interfaz de Tailscale. Auth mínima suficiente para un solo usuario en red privada: token estático en cabecera, guardado por la PWA. Endurecer solo si algún día se expone fuera.
 - HTTPS para la PWA vía Tailscale (certificados integrados) o Caddy.

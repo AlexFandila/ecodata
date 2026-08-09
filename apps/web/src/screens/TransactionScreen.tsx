@@ -13,7 +13,13 @@
  * (ADR-010), y el CSV de Revolut hace justo lo contrario (ADR-011). Elegir
  * siempre el mismo dejaría el formulario en blanco con la mitad de las fuentes.
  */
-import type { Category, RuleField, RuleMatchType, Transaction } from '@finanzas/shared'
+import type {
+  Category,
+  CategorySource,
+  RuleField,
+  RuleMatchType,
+  Transaction,
+} from '@finanzas/shared'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { type FormEvent, useId, useState } from 'react'
 import { Link, useParams } from 'react-router'
@@ -44,11 +50,12 @@ const FIELD_LABELS: Record<RuleField, string> = {
 }
 
 /** Quién puso la categoría. `suggestion` es de la Fase 5, pero el tipo ya la trae. */
-const SOURCE_LABELS = {
+const SOURCE_LABELS: Record<CategorySource, string> = {
   rule: 'puesta por una regla',
   manual: 'puesta a mano',
   suggestion: 'sugerida, sin confirmar',
-} as const
+  transfer: 'la de la transferencia interna',
+}
 
 export function TransactionScreen() {
   const { id } = useParams()
@@ -115,11 +122,29 @@ export function TransactionScreen() {
         onDone={() => queryClient.invalidateQueries({ queryKey: transactionsRootKey })}
       />
 
-      <RuleForm
-        transaction={transaction}
-        categories={categories.data ?? []}
-        onDone={() => queryClient.invalidateQueries({ queryKey: transactionsRootKey })}
-      />
+      {transaction.transferId === null ? (
+        <RuleForm
+          transaction={transaction}
+          categories={categories.data ?? []}
+          onDone={() => queryClient.invalidateQueries({ queryKey: transactionsRootKey })}
+        />
+      ) : null}
+
+      {transaction.transferId === null ? (
+        <section className="flex flex-col gap-3">
+          <h2 className="font-medium text-slate-100">¿Es un traspaso entre cuentas tuyas?</h2>
+          <p className="text-slate-500 text-xs">
+            Emparejarlo con su otra pata lo saca de ingresos y gastos, pero sigue moviendo el saldo
+            de las dos cuentas.
+          </p>
+          <Link
+            to={`/movimientos/transferencias/emparejar?con=${transaction.id}`}
+            className="min-h-11 rounded-xl bg-slate-800 px-4 py-3 text-center font-medium text-slate-100"
+          >
+            Emparejar como transferencia interna
+          </Link>
+        </section>
+      ) : null}
 
       <BackLink />
     </Screen>
@@ -195,12 +220,22 @@ function Categorize({
 
   if (transaction.transferId !== null) {
     // Invariante 3: la categoría de una pata de transferencia la pone la
-    // transferencia. Decirlo aquí evita un 409 que el usuario no esperaba.
+    // transferencia. Decirlo aquí evita un 409 que el usuario no esperaba, y
+    // llevarle a donde sí puede hacer algo —deshacerla— evita que el aviso sea
+    // un callejón sin salida.
     return (
-      <p className="text-slate-400 text-sm">
-        Este movimiento es parte de una transferencia interna: su categoría depende de la
-        transferencia y no se puede cambiar aquí.
-      </p>
+      <section className="flex flex-col gap-3">
+        <p className="text-slate-400 text-sm">
+          Este movimiento es parte de una transferencia interna: su categoría depende de la
+          transferencia y no se puede cambiar aquí.
+        </p>
+        <Link
+          to="/movimientos/transferencias"
+          className="min-h-11 rounded-xl bg-slate-800 px-4 py-3 text-center font-medium text-slate-100"
+        >
+          Ver la transferencia
+        </Link>
+      </section>
     )
   }
 

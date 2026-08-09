@@ -12,7 +12,7 @@
  * y no en `matchInternalTransfers` (ADR-013).
  */
 import { applyCategoryRules, type CategoryRule, type InvalidRule } from '@finanzas/core'
-import { and, eq, isNull, or } from 'drizzle-orm'
+import { and, eq, inArray, isNull, or } from 'drizzle-orm'
 import type { Db } from '../../db/client'
 import { rules, transactions } from '../../db/schema'
 
@@ -23,6 +23,17 @@ export type CategorizeOptions = {
    * todo lo recategorizable, que es el botón «recategorizar» de la UI.
    */
   readonly importId?: number
+  /**
+   * Acotar a unos movimientos concretos. Lo usa deshacer una transferencia
+   * interna: sus dos patas se quedan sin categoría al liberarse y hay que
+   * volver a pasarles las reglas, pero recategorizar la base entera por dos
+   * filas sería desproporcionado.
+   *
+   * Una lista **vacía** no significa "todos": significa que no hay nada que
+   * hacer. Lo contrario convertiría un `filter` que se ha quedado sin
+   * resultados en una recategorización general.
+   */
+  readonly transactionIds?: readonly number[]
 }
 
 export type CategorizeOutcome = {
@@ -44,6 +55,13 @@ export type CategorizeOutcome = {
  * hecho?».
  */
 export function categorizeTransactions(db: Db, options: CategorizeOptions = {}): CategorizeOutcome {
+  // Acotar a ningún movimiento es no tener nada que hacer, y hay que atajarlo
+  // antes de la consulta: un `inArray` con la lista vacía no filtra, y esto
+  // acabaría recategorizando todo lo recategorizable.
+  if (options.transactionIds !== undefined && options.transactionIds.length === 0) {
+    return { scanned: 0, categorized: 0, cleared: 0, invalidRules: [] }
+  }
+
   const activeRules: CategoryRule[] = db
     .select({
       id: rules.id,
@@ -76,6 +94,9 @@ export function categorizeTransactions(db: Db, options: CategorizeOptions = {}):
         // `manual` y lo `suggestion` no se tocan jamás automáticamente.
         or(isNull(transactions.categoryId), eq(transactions.categorySource, 'rule')),
         options.importId === undefined ? undefined : eq(transactions.importId, options.importId),
+        options.transactionIds === undefined
+          ? undefined
+          : inArray(transactions.id, [...options.transactionIds]),
       ),
     )
     .all()

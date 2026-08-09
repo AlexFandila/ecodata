@@ -1,9 +1,9 @@
 /**
  * Todos los datos de este fichero son inventados.
  */
-import { and, eq, isNull } from 'drizzle-orm'
+import { and, eq, isNotNull, isNull } from 'drizzle-orm'
 import { describe, expect, it } from 'vitest'
-import { accounts, goals, rules, transactions } from '../db/schema'
+import { accounts, goals, rules, transactions, transfers } from '../db/schema'
 import { createTestDb } from '../db/testing'
 import { runSeed, SEED_ACCOUNTS, SEED_GOALS, SEED_RULES } from './run'
 import { SEED_MONTHS, syntheticSeed } from './synthetic'
@@ -85,14 +85,19 @@ describe('runSeed', () => {
     expect(outcome.transactions.categorized).toBeGreaterThan(0)
     expect(outcome.transactions.total).toBeGreaterThan(outcome.transactions.categorized)
 
-    // Lo que puso una regla lo dice `category_source`, no la sola presencia de
-    // categoría (invariante 7).
-    const byRule = db
-      .select({ id: transactions.id })
-      .from(transactions)
-      .where(eq(transactions.categorySource, 'rule'))
-      .all()
-    expect(byRule.length).toBe(outcome.transactions.categorized)
+    // Quién puso cada categoría lo dice `category_source`, no la sola presencia
+    // de categoría (invariante 7). Y las categorías de la semilla salen de dos
+    // sitios: las reglas, y el emparejado de transferencias, que impone
+    // `internal_transfer` a sus dos patas (invariante 3).
+    const bySource = (source: 'rule' | 'transfer') =>
+      db
+        .select({ id: transactions.id })
+        .from(transactions)
+        .where(eq(transactions.categorySource, source))
+        .all().length
+
+    expect(bySource('transfer')).toBe(outcome.transfers.created * 2)
+    expect(bySource('rule') + bySource('transfer')).toBe(outcome.transactions.categorized)
 
     const pending = db
       .select({ id: transactions.id })
@@ -102,7 +107,7 @@ describe('runSeed', () => {
     expect(pending.length).toBeGreaterThan(0)
   })
 
-  it('deja emparejable cada traspaso que ha generado, sin ambigüedades', () => {
+  it('empareja cada traspaso que ha generado, sin ambigüedades', () => {
     const { outcome } = seededDb()
 
     // El número exacto depende de qué día del mes se siembre, así que la
@@ -110,25 +115,31 @@ describe('runSeed', () => {
     // todos y no deje ninguno empatado.
     const { transferCount } = syntheticSeed({ endDate: END_DATE })
     expect(transferCount).toBeGreaterThan(0)
-    expect(outcome.matchable).toEqual({ pairs: transferCount, unresolved: 0 })
+    expect(outcome.transfers).toEqual({ created: transferCount, unresolved: 0 })
   })
 
   it('empareja los tres traspasos cuando el último mes está completo', () => {
     const db = createTestDb()
     const outcome = runSeed(db, { endDate: '2026-08-31' })
 
-    expect(outcome.matchable).toEqual({ pairs: SEED_MONTHS, unresolved: 0 })
+    expect(outcome.transfers).toEqual({ created: SEED_MONTHS, unresolved: 0 })
   })
 
-  it('no escribe en transfers: eso es del módulo ledger', () => {
-    const { db } = seededDb()
+  it('deja las transferencias en estado auto, para que haya algo que revisar', () => {
+    const { db, outcome } = seededDb()
 
-    const emparejados = db
-      .select({ id: transactions.id })
+    const rows = db.select().from(transfers).all()
+    expect(rows).toHaveLength(outcome.transfers.created)
+    expect(rows.every((row) => row.status === 'auto')).toBe(true)
+
+    // Invariante 3: las dos patas de cada una quedan con `internal_transfer`.
+    const legs = db
+      .select({ categorySource: transactions.categorySource })
       .from(transactions)
-      .where(isNull(transactions.transferId))
+      .where(isNotNull(transactions.transferId))
       .all()
-    expect(emparejados.length).toBe(db.select().from(transactions).all().length)
+    expect(legs).toHaveLength(outcome.transfers.created * 2)
+    expect(legs.every((leg) => leg.categorySource === 'transfer')).toBe(true)
   })
 
   it('sembrar dos veces deja exactamente la misma base', () => {
@@ -149,7 +160,9 @@ describe('runSeed', () => {
     }
 
     expect(second.transactions).toEqual(first.transactions)
-    expect(second.matchable).toEqual(first.matchable)
+    // Cero nuevas, no las mismas: lo ya emparejado no vuelve a ser candidato.
+    expect(second.transfers).toEqual({ created: 0, unresolved: 0 })
+    expect(db.select().from(transfers).all()).toHaveLength(first.transfers.created)
 
     expect(db.select().from(accounts).all()).toHaveLength(2)
     expect(db.select().from(rules).all()).toHaveLength(SEED_RULES.length)

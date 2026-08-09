@@ -8,13 +8,27 @@ import { createCategoriesRoutes } from './routes/categories'
 import { createImportsRoutes } from './routes/imports'
 import { createRulesRoutes } from './routes/rules'
 import { createTransactionsRoutes } from './routes/transactions'
+import { createTransfersRoutes } from './routes/transfers'
+
+export type AppOptions = {
+  /**
+   * Variantes del nombre del titular que el matching de transferencias
+   * internas reconoce en los extractos (la señal de +2). Van por parámetro y no
+   * leídas del entorno dentro de las rutas, por lo mismo que la base: es dato
+   * personal, no vive en el repo, y un test tiene que poder fijarlo.
+   *
+   * Vacío es un valor legítimo: el matching sigue funcionando, solo pierde esa
+   * señal de desempate.
+   */
+  readonly holderNames?: readonly string[]
+}
 
 /**
  * La base entra por parámetro y sin valor por defecto a propósito: un
  * `createApp()` que se abriera la suya sería una base global escondida que
  * aparecería en los tests sin que nadie la hubiera pedido.
  */
-export function createApp(db: Db) {
+export function createApp(db: Db, { holderNames = [] }: AppOptions = {}) {
   const app = new Hono()
 
   // Red de seguridad: cualquier excepción que no haya sabido traducir una ruta
@@ -33,9 +47,10 @@ export function createApp(db: Db) {
 
   app.route('/accounts', createAccountsRoutes(db))
   app.route('/categories', createCategoriesRoutes(db))
-  app.route('/imports', createImportsRoutes(db))
+  app.route('/imports', createImportsRoutes(db, { holderNames }))
   app.route('/rules', createRulesRoutes(db))
   app.route('/transactions', createTransactionsRoutes(db))
+  app.route('/transfers', createTransfersRoutes(db, { holderNames }))
 
   return app
 }

@@ -13,19 +13,19 @@
  *    con qué trabajar.
  * 4. Los dos extractos por el `runImport()` de producción.
  * 5. Categorizar, igual que hace la ruta `POST /imports`.
- * 6. Objetivos, que no dependen de nada.
+ * 6. Emparejar transferencias internas, también igual que aquella ruta: la
+ *    semilla imita el pipeline de producción entero, así que la base de
+ *    desarrollo tiene transferencias `auto` que revisar desde el primer
+ *    `pnpm seed`. Los traspasos sintéticos son todos de importe distinto,
+ *    porque los empates el matcher los deja sin resolver a propósito.
+ * 7. Objetivos, que no dependen de nada.
  *
  * Es idempotente de arriba abajo: cuentas por nombre, reglas por su terna
  * (campo, tipo, patrón), objetivos por nombre y movimientos por el
- * `UNIQUE(source_hash)` de siempre. Sembrar dos veces deja la misma base.
- *
- * Lo que **no** hace: escribir en `transfers`. Persistir emparejamientos es del
- * módulo `ledger`, que entra con la pantalla de revisión (ROADMAP, Fase 1). La
- * semilla se limita a dejar traspasos que el matcher pueda casar, y a contar
- * cuántos casaría, que es información de diagnóstico, no un efecto sobre la
- * base.
+ * `UNIQUE(source_hash)` de siempre. El emparejado también: lo ya emparejado no
+ * vuelve a ser candidato, así que la segunda pasada crea 0. Sembrar dos veces
+ * deja la misma base.
  */
-import { matchInternalTransfers, type TransferMatchingResult } from '@finanzas/core'
 import { type Currency, createRuleRequestSchema, type RuleField } from '@finanzas/shared'
 import { and, eq, isNull } from 'drizzle-orm'
 import type { Db } from '../db/client'
@@ -45,6 +45,7 @@ import {
   revolutCsvBytes,
   runImport,
 } from '../modules/ingest/index'
+import { recordInternalTransfers } from '../modules/ledger/index'
 import {
   REVOLUT_OPENING_BALANCE_CENTS,
   syntheticSeed,
@@ -188,10 +189,11 @@ export type SeedOutcome = {
   /** Movimientos vivos, con y sin categoría. */
   readonly transactions: { readonly total: number; readonly categorized: number }
   /**
-   * Lo que el matcher de `packages/core` emparejaría con estos datos. Se calcula
-   * y se enseña, pero no se persiste: `transfers` es cosa de `ledger`.
+   * Transferencias internas escritas en esta pasada, y cuántos movimientos han
+   * quedado sin emparejar por empate. En la segunda pasada `created` es 0: lo
+   * ya emparejado no vuelve a ser candidato.
    */
-  readonly matchable: { readonly pairs: number; readonly unresolved: number }
+  readonly transfers: { readonly created: number; readonly unresolved: number }
 }
 
 export type SeedOptions = {
@@ -307,47 +309,6 @@ function ensureGoals(db: Db): SeedCount {
   return { created, existing }
 }
 
-/**
- * Qué emparejaría el matcher con lo que hay en la base ahora mismo.
- *
- * Los criterios que `packages/core` no conoce —borrado lógico y «todavía sin
- * transferencia»— son el filtro de esta consulta, igual que en `categorize` lo
- * es el invariante 7 (ADR-013).
- */
-function matchableTransfers(
-  db: Db,
-  aliasesByAccountId: Map<number, readonly string[]>,
-): TransferMatchingResult {
-  const candidates = db
-    .select({
-      id: transactions.id,
-      accountId: transactions.accountId,
-      bookedAt: transactions.bookedAt,
-      amountCents: transactions.amountCents,
-      currency: transactions.currency,
-      counterparty: transactions.counterparty,
-      description: transactions.description,
-    })
-    .from(transactions)
-    .where(and(isNull(transactions.deletedAt), isNull(transactions.transferId)))
-    .all()
-
-  const rows = db
-    .select({ id: accounts.id, isOwn: accounts.isOwn, name: accounts.name })
-    .from(accounts)
-    .all()
-
-  return matchInternalTransfers({
-    candidates,
-    accounts: rows.map((row) => ({
-      id: row.id,
-      isOwn: row.isOwn,
-      aliases: aliasesByAccountId.get(row.id) ?? [row.name],
-    })),
-    holderNames: SEED_HOLDER_NAMES,
-  })
-}
-
 // ---------------------------------------------------------------------------
 // La semilla
 // ---------------------------------------------------------------------------
@@ -383,19 +344,19 @@ export function runSeed(db: Db, { endDate }: SeedOptions): SeedOutcome {
 
   const goalsOutcome = ensureGoals(db)
 
+  // Última etapa, igual que en `POST /imports`: emparejar las transferencias
+  // internas. Los alias los construye `ledger` desde el proveedor y el nombre
+  // de cada cuenta, que son los mismos que declara `SEED_ACCOUNTS`.
+  const matching = recordInternalTransfers(db, { holderNames: SEED_HOLDER_NAMES })
+
+  // El recuento va detrás de todas las etapas y no en medio: emparejar
+  // categoriza las patas (invariante 3), así que contar antes daría un número
+  // distinto en la primera pasada que en la segunda para la misma base.
   const live = db
     .select({ id: transactions.id, categoryId: transactions.categoryId })
     .from(transactions)
     .where(isNull(transactions.deletedAt))
     .all()
-
-  const matching = matchableTransfers(
-    db,
-    new Map<number, readonly string[]>([
-      [unicaja.id, SEED_ACCOUNTS.unicaja.aliases],
-      [revolut.id, SEED_ACCOUNTS.revolut.aliases],
-    ]),
-  )
 
   return {
     period: data.period,
@@ -408,6 +369,6 @@ export function runSeed(db: Db, { endDate }: SeedOptions): SeedOutcome {
       total: live.length,
       categorized: live.filter((row) => row.categoryId !== null).length,
     },
-    matchable: { pairs: matching.matches.length, unresolved: matching.unresolved.length },
+    transfers: matching,
   }
 }

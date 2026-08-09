@@ -66,6 +66,10 @@ function stubFetch(transactions: readonly Transaction[], total = transactions.le
   fetchMock = vi.fn(async (input: string) => {
     if (input.startsWith('/api/accounts')) return Response.json({ accounts: [CUENTA] })
     if (input.startsWith('/api/categories')) return Response.json({ categories: [SUPERMERCADO] })
+    // El contador de la pestaña de transferencias: solo se usa su `total`.
+    if (input.startsWith('/api/transfers')) {
+      return Response.json({ transfers: [], total: 2, limit: 1, offset: 0 })
+    }
 
     const url = new URL(input, 'http://localhost')
     const limit = Number(url.searchParams.get('limit') ?? '50')
@@ -115,6 +119,13 @@ describe('TransactionsScreen · la lista', () => {
     renderWithProviders(<TransactionsScreen />, { route: '/movimientos' })
 
     expect(await screen.findByText('BIZUM ENVIADO')).toBeInTheDocument()
+  })
+
+  it('ofrece la revisión de transferencias con las que faltan por revisar', async () => {
+    renderWithProviders(<TransactionsScreen />, { route: '/movimientos' })
+
+    const pestaña = await screen.findByRole('tab', { name: /Transferencias \(2\)/ })
+    expect(pestaña).toHaveAttribute('href', '/movimientos/transferencias')
   })
 
   it('cada fila lleva al detalle del movimiento', async () => {

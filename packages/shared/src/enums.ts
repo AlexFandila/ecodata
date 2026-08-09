@@ -8,10 +8,9 @@
  * Fase 3, `apps/mcp`. Una lista sola, en un sitio del que todos cuelgan, en vez
  * de una copia por capa que hay que recordar sincronizar.
  *
- * La única lista que todavía no tiene contrato (`TRANSFER_STATUSES`) sigue en
+ * La única lista que todavía no tiene contrato (`GOAL_TYPES`) sigue en
  * `apps/api/src/db/schema.ts`; se muda aquí cuando llegue su tarea del roadmap
- * —la pantalla de revisión de transferencias— y la necesite alguien más que la
- * base de datos.
+ * —los objetivos de la Fase 2— y la necesite alguien más que la base de datos.
  */
 import { z } from 'zod'
 
@@ -40,8 +39,15 @@ export type AccountType = z.infer<typeof accountTypeSchema>
  * Quién puso la categoría de un movimiento. Es el invariante 7: la
  * automatización solo pisa lo que sea `rule` (o lo que no tenga categoría),
  * nunca lo `manual`.
+ *
+ * `transfer` es la categoría que impone una transferencia interna por el
+ * invariante 3, y existe como valor propio en vez de reutilizar `rule` porque
+ * ninguna regla la puso: así la protección es doble —el motor de reglas ya
+ * excluye las patas por `transfer_id`, y aunque ese filtro se cayera el
+ * invariante 7 seguiría dejándolas fuera— y la interfaz no tiene que mentir
+ * sobre de dónde salió (ADR-015).
  */
-export const CATEGORY_SOURCES = ['rule', 'manual', 'suggestion'] as const
+export const CATEGORY_SOURCES = ['rule', 'manual', 'suggestion', 'transfer'] as const
 export const categorySourceSchema = z.enum(CATEGORY_SOURCES)
 export type CategorySource = z.infer<typeof categorySourceSchema>
 
@@ -73,6 +79,37 @@ export type RuleField = z.infer<typeof ruleFieldSchema>
 export const RULE_MATCH_TYPES = ['contains', 'regex'] as const
 export const ruleMatchTypeSchema = z.enum(RULE_MATCH_TYPES)
 export type RuleMatchType = z.infer<typeof ruleMatchTypeSchema>
+
+/**
+ * En qué estado está una transferencia interna.
+ *
+ * `auto` la emparejó la heurística y nadie la ha mirado todavía; `confirmed` la
+ * validó el usuario en la pantalla de revisión; `manual` la creó él mismo. No
+ * hay `rejected`: rechazar un emparejamiento es deshacerlo, y una transferencia
+ * deshecha no es una fila en otro estado sino una fila que ya no existe
+ * (ADR-015).
+ */
+export const TRANSFER_STATUSES = ['auto', 'confirmed', 'manual'] as const
+export const transferStatusSchema = z.enum(TRANSFER_STATUSES)
+export type TransferStatus = z.infer<typeof transferStatusSchema>
+
+/**
+ * Las señales que dispararon un emparejamiento automático, tal como salen en
+ * `transfers.matched_by`. Es lo que la pantalla de revisión enseña para
+ * explicar por qué se emparejaron dos movimientos.
+ *
+ * La autoridad sobre esta lista es `TRANSFER_MATCH_SIGNALS` de `packages/core`,
+ * que es quien las produce. Se repite aquí por lo mismo que las divisas —
+ * `shared` no puede importar de `core`— y, como aquellas, hay un test en
+ * `apps/api` que compara las dos copias (ADR-009 decisión 2).
+ */
+export const TRANSFER_MATCH_SIGNALS = [
+  'other_provider_named',
+  'holder_named',
+  'close_dates',
+] as const
+export const transferMatchSignalSchema = z.enum(TRANSFER_MATCH_SIGNALS)
+export type TransferMatchSignal = z.infer<typeof transferMatchSignalSchema>
 
 /**
  * Adaptador que produjo una importación; es lo que se guarda en

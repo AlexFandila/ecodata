@@ -12,16 +12,15 @@
  * invariante 4 dice que no se toca—, y una URL que prometiera editar el
  * movimiento entero estaría mintiendo.
  *
- * Aquí se traduce la fila de la base al contrato de shared: `raw`, `sourceHash`
- * y `deletedAt` se quedan dentro, y la respuesta la construye
- * `transactionSchema`, no un `...row` (ADR-009 punto 6).
+ * La fila de la base se traduce al contrato de shared con `transactionDto`, que
+ * es de `http/dto.ts` porque el mismo movimiento sale también como pata de una
+ * transferencia interna: `raw`, `sourceHash` y `deletedAt` se quedan dentro
+ * (ADR-009 punto 6).
  */
 import {
   detailsFromZodError,
   listTransactionsQuerySchema,
   listTransactionsResponseSchema,
-  type Transaction,
-  transactionSchema,
   updateTransactionCategoryRequestSchema,
 } from '@finanzas/shared'
 import { Hono } from 'hono'
@@ -32,38 +31,9 @@ import {
   TransactionNotFoundError,
   TransferLegNotCategorizableError,
 } from '../../modules/categorize/index'
-import {
-  findTransaction,
-  listTransactions,
-  type Transaction as TransactionRow,
-} from '../../modules/ledger/index'
+import { findTransaction, listTransactions } from '../../modules/ledger/index'
+import { transactionDto as toDto, entityId as transactionId } from '../dto'
 import { errorJson } from '../errors'
-
-function toDto(row: TransactionRow): Transaction {
-  return transactionSchema.parse({
-    id: row.id,
-    accountId: row.accountId,
-    bookedAt: row.bookedAt,
-    valueDate: row.valueDate,
-    amountCents: row.amountCents,
-    currency: row.currency,
-    counterparty: row.counterparty,
-    description: row.description,
-    categoryId: row.categoryId,
-    categorySource: row.categorySource,
-    transferId: row.transferId,
-    importId: row.importId,
-  })
-}
-
-/**
- * El `:id` de la URL, ya validado. `Number('')` es `0` y `Number('1.5')` no es
- * entero: los dos tienen que caer aquí y no llegar a una consulta.
- */
-function transactionId(raw: string): number | null {
-  const id = Number(raw)
-  return Number.isInteger(id) && id > 0 ? id : null
-}
 
 export function createTransactionsRoutes(db: Db) {
   const routes = new Hono()

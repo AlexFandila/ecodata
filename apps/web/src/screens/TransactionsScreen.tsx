@@ -27,9 +27,11 @@ import {
   type TransactionFilters,
   transactionsQueryKey,
 } from '../api/transactions'
+import { fetchTransfers, type TransferFilters, transfersQueryKey } from '../api/transfers'
 import { CONTROL_CLASS, Field } from '../components/Field'
 import { Notice } from '../components/Notice'
 import { Screen } from '../components/Screen'
+import { TabButton, TabLink, TabStrip } from '../components/Tabs'
 import { formatDay } from '../format/date'
 import { formatMoney } from '../format/money'
 
@@ -116,6 +118,15 @@ export function TransactionsScreen() {
     retry: false,
   })
 
+  // Y el de la pestaña de transferencias, por lo mismo: las que están sin
+  // revisar, contadas sin traerse la lista.
+  const transfersQuery: TransferFilters = { status: 'auto', limit: 1 }
+  const transfers = useQuery({
+    queryKey: transfersQueryKey(transfersQuery),
+    queryFn: () => fetchTransfers(transfersQuery),
+    retry: false,
+  })
+
   function updateFilter(key: string, value: string) {
     const next = new URLSearchParams(params)
     if (value === '') next.delete(key)
@@ -142,14 +153,18 @@ export function TransactionsScreen() {
 
   return (
     <Screen title="Movimientos">
-      <div className="flex rounded-xl bg-slate-800/60 p-1" role="tablist" aria-label="Qué se lista">
-        <Tab selected={!filters.pending} onSelect={() => setPending(false)}>
+      <TabStrip label="Qué se lista">
+        <TabButton selected={!filters.pending} onSelect={() => setPending(false)}>
           Todos
-        </Tab>
-        <Tab selected={filters.pending} onSelect={() => setPending(true)}>
+        </TabButton>
+        <TabButton selected={filters.pending} onSelect={() => setPending(true)}>
           Sin categorizar{pending.data === undefined ? '' : ` (${pending.data.total})`}
-        </Tab>
-      </div>
+        </TabButton>
+        {/* Enlace y no botón: es otra pantalla, no otro filtro de esta. */}
+        <TabLink to="/movimientos/transferencias" selected={false}>
+          Transferencias{transfers.data === undefined ? '' : ` (${transfers.data.total})`}
+        </TabLink>
+      </TabStrip>
 
       <button
         type="button"
@@ -315,30 +330,6 @@ export function TransactionsScreen() {
 function categoryLabel(category: Category, byId: Map<number, Category>): string {
   const parent = category.parentId === null ? undefined : byId.get(category.parentId)
   return parent === undefined ? category.name : `${parent.name} · ${category.name}`
-}
-
-function Tab({
-  selected,
-  onSelect,
-  children,
-}: {
-  selected: boolean
-  onSelect: () => void
-  children: React.ReactNode
-}) {
-  return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={selected}
-      onClick={onSelect}
-      className={`min-h-11 flex-1 rounded-lg px-3 text-sm ${
-        selected ? 'bg-slate-700 font-medium text-slate-100' : 'text-slate-400'
-      }`}
-    >
-      {children}
-    </button>
-  )
 }
 
 /**
