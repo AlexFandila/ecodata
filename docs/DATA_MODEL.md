@@ -46,9 +46,11 @@ Nombres de tablas y campos en inglés. Dinero siempre como enteros en céntimos 
 
 ### fx_rates
 - `date`, `base`, `quote`, `rate` — tipos de cambio de referencia del BCE. Solo para agregados; el importe original nunca se convierte destructivamente.
+- **Prevista, todavía no creada.** Entra en la Fase 2 con el adaptador del BCE, no antes: una tabla de tipos de cambio vacía no es neutral, invita a escribir agregados multidivisa que devolverían cero. Es la razón por la que el dashboard suma por divisa y `totals` es una lista y no un número (ADR-016).
 
 ### market_series
 - `series_id` (p. ej. `euribor_12m`, `hicp_ea`, `ipc_es`), `date`, `value` — caché local de BCE/BdE/INE.
+- **Prevista, todavía no creada.** Entra en la Fase 2 junto al puerto `MarketSeriesProvider` y sus tres adaptadores. Hasta entonces el esquema tiene siete tablas: `accounts`, `categories`, `imports`, `transactions`, `transfers`, `rules` y `goals`.
 
 ## Invariantes
 

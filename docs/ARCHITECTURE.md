@@ -19,17 +19,18 @@ finanzas-app/
 │   │       │   ├── ingest/      # importación y normalización (adaptadores de fichero, luego Open Banking)
 │   │       │   ├── ledger/      # cuentas, movimientos, transferencias internas, saldos
 │   │       │   ├── categorize/  # categorías y motor de reglas
-│   │       │   ├── goals/       # objetivos y proyecciones (llama a core/finance)
-│   │       │   ├── marketdata/  # BCE, Banco de España, INE (con caché local)
-│   │       │   └── advisor/     # reglas de asesoría transparentes
+│   │       │   ├── goals/       # (Fase 2) objetivos y proyecciones (llama a core/finance)
+│   │       │   ├── marketdata/  # (Fase 2) BCE, Banco de España, INE (con caché local)
+│   │       │   └── advisor/     # (Fase 3) reglas de asesoría transparentes
 │   │       ├── db/              # esquema Drizzle y migraciones
-│   │       ├── http/            # rutas, auth, arranque
+│   │       ├── http/            # rutas y arranque (la auth es de la Fase 2: hoy no hay)
 │   │       └── seed/            # `pnpm seed`: datos sintéticos; `--empty`, base para datos reales
 │   ├── web/                  # React + Vite PWA (mobile-first)
 │   └── mcp/                  # (Fase 3) servidor MCP de solo lectura
 ├── packages/
-│   ├── core/                 # dominio puro, sin IO: money, dedupe, dates, matching, rules, finance
+│   ├── core/                 # dominio puro, sin IO: money, dedupe, dates, matching, rules, summary (+ finance en la Fase 2)
 │   └── shared/               # esquemas zod + tipos (contratos)
+├── scripts/                  # utilidades sin dependencias: generador de iconos (`pnpm icons`), cuerpo del hook pre-commit
 ├── data/                     # datos reales del usuario — git-ignored, vetado a Claude Code
 └── docs/
 ```
@@ -88,7 +89,7 @@ Dos capas separadas a propósito:
 - `vite-plugin-pwa` en modo `generateSW`: manifest e iconos en `apps/web/public/`, y un service worker que **precachea el armazón** (HTML, JS, CSS, iconos) y sirve los `GET` de la API con `NetworkFirst` y 24 horas de caducidad, para poder consultar el último estado con el servidor apagado. Las escrituras no pasan por él: offline es **de solo lectura**, sin cola ni background sync. Ver ADR-017, que recoge también por qué se asume tener movimientos bancarios en el `CacheStorage` del dispositivo y por qué los iconos los genera un script propio (`pnpm icons`) en vez de `sharp`.
 - El manifest y el patrón que decide qué es «la API» viven en `src/pwa/config.ts` como datos, no como literales dentro de `vite.config.ts`: el patrón se deriva de la **misma** `VITE_API_URL` que lee `api/client.ts` —si divergieran, el service worker cachearía otra cosa— y así los dos se comprueban con tests (`src/pwa/config.test.ts`), incluido que cada icono declarado exista y mida lo que dice.
 - Instalable en Android (prompt nativo) y en iPhone (Compartir → Añadir a pantalla de inicio). Lo que iOS no saca del manifest —`apple-touch-icon` y las metas de `apple-mobile-web-app-*`— va a mano en `index.html`. Ver ADR-001.
-- Navegación inferior de 4-5 pestañas: Resumen · Movimientos · Objetivos · Aprender · Ajustes. Van cuatro montadas; *Aprender* entra con su módulo en la Fase 5.
+- Navegación inferior de 4-5 pestañas: Resumen · Movimientos · Objetivos · Aprender · Ajustes. Van cuatro montadas, pero solo tres tienen contenido: *Objetivos* es todavía una pantalla vacía —la tabla `goals` existe desde la Fase 1 por la semilla, pero no hay módulo, ni contratos, ni rutas— y se llena en la Fase 2. *Aprender* ni siquiera está montada: entra con su módulo en la Fase 5.
 - Estado de servidor con TanStack Query; nada de estado global complejo mientras no haga falta.
 - Router: `react-router` en modo declarativo (`<BrowserRouter>` + `<Routes>`), sin rutas por ficheros ni build de servidor: la PWA se sirve como estáticos.
 - Las direcciones van en español porque el usuario las ve (`/movimientos`, `/ajustes/importar`); los ficheros y los identificadores, en inglés como el resto del código.
@@ -115,7 +116,7 @@ Reglas: solo lectura por defecto; si algún día se añade escritura (crear regl
 
 - Secretos en `.env` (nunca en código, nunca en git); `env.example` documenta las variables necesarias. Ahí vive también lo que no es un secreto pero sí dato personal: `HOLDER_NAMES`, las variantes del nombre del titular que el matching de transferencias reconoce en los extractos (ADR-013 decisión 5). Se lee una sola vez, en el arranque, y viaja por parámetro hasta las rutas —`createApp(db, { holderNames })`— para que ninguna se lea su propia configuración por su cuenta. Por la misma puerta entra `today`, el reloj que `GET /dashboard` usa para resolver «el mes en curso»: no es un secreto, pero sí es algo que una ruta que lo mirase por su cuenta volvería incomprobable (ADR-016 decisión 6).
 - Defensa en capas durante el desarrollo con Claude Code (ver ADR-006): el sandbox a nivel de sistema operativo es el muro real (cubre también subprocesos), las reglas `deny` de `.claude/settings.json` son la primera capa (`.env`, `data/`), el modo plan por defecto impide editar sin aprobación, dependency-cruiser convierte las fronteras de módulos en error de lint, y el hook pre-commit (lint + typecheck + escaneo de IBANs) es el suelo en git. `/revisar` queda como capa semántica para lo que exige juicio.
-- La API escucha solo en localhost o en la interfaz de Tailscale. Auth mínima suficiente para un solo usuario en red privada: token estático en cabecera, guardado por la PWA. Endurecer solo si algún día se expone fuera.
+- La API escucha solo en localhost (`hostname: '127.0.0.1'` en `apps/api/src/index.ts`) o en la interfaz de Tailscale. **Hoy eso es toda la defensa: la API no autentica.** No hay middleware de auth ni cabecera que se compruebe, aunque `env.example` declare `API_TOKEN` desde la Fase 0. Lo previsto —token estático en cabecera, guardado por la PWA, auth mínima suficiente para un solo usuario en red privada— es una casilla de la Fase 2 del roadmap. Mientras no esté, cualquiera con acceso a la tailnet o a ese puerto lee los movimientos sin credencial. Endurecer más allá del token solo si algún día se expone fuera.
 - HTTPS para la PWA vía Tailscale (certificados integrados) o Caddy.
 - Backups: script nocturno que copia el `.db` con fecha a `data/backups/` (y opcionalmente Litestream a un bucket cifrado).
 

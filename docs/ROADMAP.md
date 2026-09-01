@@ -47,6 +47,7 @@ Trabajar una fase cada vez, y dentro de cada fase, una tarea cada vez. Marcar ca
 - [ ] Simulador de vivienda: entrada %, gastos e impuestos % (parámetro por CCAA), cuota con amortización francesa, estrés de euríbor ±2 pp, ratio de esfuerzo ≤ 35 %
 - [ ] Simuladores de coche y fondo de emergencia
 - [ ] Web: crear objetivo, ver plan de ahorro mensual, progreso real vs plan, supuestos siempre visibles y editables
+- [ ] Auth de la API: middleware en Hono que exija el token estático de `API_TOKEN` en cabecera, y la PWA que lo guarde y lo envíe. **Hoy la API no autentica**: lo único que la protege es el bind a `127.0.0.1` y la tailnet (ADR-003), aunque `env.example` declare la variable desde la Fase 0 y ARCHITECTURE.md la diera por hecha. Va en esta fase y no más tarde porque es la primera en la que la app se usa a diario con extractos propios desde el móvil
 
 **Aceptación**: creo el objetivo "entrada de una casa de 200.000 € en 2031" y obtengo aportación mensual con tres escenarios, cuota hipotecaria estimada con euríbor actual y estresado, y una explicación de cada supuesto.
 
