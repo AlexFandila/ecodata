@@ -71,8 +71,8 @@ export function NewAccountScreen() {
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
 
-    // Se valida al enviar y no al teclear: mientras se escribe «1.286,09», el
-    // texto pasa por «1.» y por «1.286,», que son inválidos, y un aviso que
+    // Se valida al enviar y no al teclear: mientras se escribe «1.234,56», el
+    // texto pasa por «1.» y por «1.234,», que son inválidos, y un aviso que
     // aparece y desaparece con cada pulsación es ruido, no ayuda.
     const openingBalanceCents = parseMoneyCents(openingBalance, currency)
     if (openingBalanceCents === null) {

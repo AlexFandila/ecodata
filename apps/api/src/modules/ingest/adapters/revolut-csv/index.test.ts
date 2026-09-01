@@ -16,7 +16,7 @@ import {
 
 /** Extracto de referencia: una recarga, un pago con tarjeta y un alquiler. */
 const EXTRACTO: SyntheticStatement = {
-  openingBalanceCents: 128609,
+  openingBalanceCents: 100000,
   movements: [
     {
       type: 'Recargas',

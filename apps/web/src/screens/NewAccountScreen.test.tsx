@@ -65,10 +65,10 @@ describe('NewAccountScreen', () => {
     renderWithProviders(<NewAccountScreen />)
 
     await user.type(screen.getByLabelText('Nombre'), 'Cuenta con saldo')
-    await user.type(screen.getByLabelText('Saldo inicial (opcional)'), '1.286,09')
+    await user.type(screen.getByLabelText('Saldo inicial (opcional)'), '1.234,56')
     await user.click(screen.getByRole('button', { name: 'Crear cuenta' }))
 
-    expect(enviado(fetchMock)).toMatchObject({ openingBalanceCents: 128609 })
+    expect(enviado(fetchMock)).toMatchObject({ openingBalanceCents: 123456 })
   })
 
   it('un saldo que no se entiende se avisa y no llega a la API', async () => {

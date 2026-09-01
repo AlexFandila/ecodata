@@ -112,7 +112,7 @@ describe('signOrNull', () => {
 describe('amountCentsOrNull', () => {
   it('lee los dígitos como céntimos: no hay nada que multiplicar', () => {
     expect(amountCentsOrNull('1', '00000000030000', 'EUR')).toBe(-30000)
-    expect(amountCentsOrNull('2', '00000000170890', 'EUR')).toBe(170890)
+    expect(amountCentsOrNull('2', '00000000198750', 'EUR')).toBe(198750)
   })
 
   it('el signo lo pone el campo de la norma, no el importe', () => {

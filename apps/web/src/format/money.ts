@@ -49,15 +49,15 @@ export function formatMoney(amountCents: number, currency: string): string {
 const AMOUNT_SHAPE = /^([+-]?)([\d.,]*)$/
 
 /**
- * La inversa de `formatMoney`: `'1.286,09'` + `EUR` → `128609`. `null` si el
+ * La inversa de `formatMoney`: `'1.234,56'` + `EUR` → `123456`. `null` si el
  * texto no es un importe.
  *
  * **Sin floats en ningún punto** (regla 3 de CLAUDE.md). La conversión no es
  * multiplicar por cien, que es justo la operación que introduce el error: es
  * manipulación de cadenas —rellenar los decimales hasta los que use la divisa y
- * concatenar—, así que `'1286,09'` da el entero `128609` exacto y no
- * `128608.99999999999`. Cuántos decimales usa la divisa lo dice `Intl`, por lo
- * mismo que lo explica la cabecera de este fichero.
+ * concatenar—, así que `'8,29'` da el entero `829` exacto y no el
+ * `828.9999999999999` que sale de multiplicar por cien. Cuántos decimales usa
+ * la divisa lo dice `Intl`, por lo mismo que lo explica la cabecera.
  *
  * Los separadores se leen como se escriben en español:
  *

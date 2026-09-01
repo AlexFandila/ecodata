@@ -13,7 +13,7 @@ const EXTRACTO: SyntheticStatement = {
   bank: '9999',
   branch: '1234',
   account: '0000000001',
-  openingBalanceCents: 128609,
+  openingBalanceCents: 100000,
   movements: [
     {
       operationDate: '260501',
@@ -24,7 +24,7 @@ const EXTRACTO: SyntheticStatement = {
     {
       operationDate: '260503',
       valueDate: '260504',
-      amountCents: 170890,
+      amountCents: 198750,
       commonConcept: '03',
       concepts: [{ first: 'NOMIN.TRANF.NACIONAL', second: 'EMPRESA EJEMPLO SL' }],
     },
@@ -50,7 +50,7 @@ describe('norma43Adapter · lectura de un extracto', () => {
 
     expect(rowErrors).toEqual([])
     expect(transactions.map((movimiento) => movimiento.amountCents)).toEqual([
-      -30000, 170890, -95000,
+      -30000, 198750, -95000,
     ])
   })
 
@@ -270,8 +270,8 @@ describe('norma43Adapter · integridad', () => {
         debitCount: 2,
         creditCount: 1,
         debitTotalCents: 125000,
-        creditTotalCents: 170890,
-        closingBalanceCents: 174499,
+        creditTotalCents: 198750,
+        closingBalanceCents: 173750,
       },
     }
 

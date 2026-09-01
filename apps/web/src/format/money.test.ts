@@ -32,18 +32,18 @@ describe('formatMoney', () => {
 
 describe('parseMoneyCents', () => {
   it('lee un importe escrito como lo escribe el banco', () => {
-    expect(parseMoneyCents('1.286,09', 'EUR')).toBe(128609)
-    expect(parseMoneyCents('1286,09', 'EUR')).toBe(128609)
+    expect(parseMoneyCents('1.234,56', 'EUR')).toBe(123456)
+    expect(parseMoneyCents('1234,56', 'EUR')).toBe(123456)
     expect(parseMoneyCents('1.234.567,89', 'EUR')).toBe(123456789)
     expect(parseMoneyCents('250', 'EUR')).toBe(25000)
   })
 
   it('no pierde céntimos por el camino: la conversión no pasa por un float', () => {
-    // El caso clásico de `Math.round(parseFloat(x) * 100)`: 1286.09 * 100 es
-    // 128608.99999999999 en coma flotante.
-    expect(parseMoneyCents('1286.09', 'EUR')).toBe(128609)
-    expect(parseMoneyCents('0,07', 'EUR')).toBe(7)
+    // El caso clásico de `Math.round(parseFloat(x) * 100)`: en coma flotante
+    // 8.29 * 100 es 828.9999999999999, que truncado da 828 y pierde un céntimo.
     expect(parseMoneyCents('8,29', 'EUR')).toBe(829)
+    expect(parseMoneyCents('1234.56', 'EUR')).toBe(123456)
+    expect(parseMoneyCents('0,07', 'EUR')).toBe(7)
   })
 
   it('desambigua el punto por el número de cifras que le siguen', () => {
@@ -73,8 +73,8 @@ describe('parseMoneyCents', () => {
   it('ignora los espacios, que en un importe solo pueden separar millares', () => {
     // Y el no separable, que es lo que pega `Intl` —y algún teclado de móvil—
     // al copiar una cantidad ya formateada.
-    expect(parseMoneyCents('1 286,09', 'EUR')).toBe(128609)
-    expect(parseMoneyCents('1 286,09', 'EUR')).toBe(128609)
+    expect(parseMoneyCents('1 234,56', 'EUR')).toBe(123456)
+    expect(parseMoneyCents('1 234,56', 'EUR')).toBe(123456)
     expect(parseMoneyCents(' 45,50 ', 'EUR')).toBe(4550)
   })
 

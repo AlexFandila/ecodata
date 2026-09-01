@@ -11,7 +11,7 @@ import { latin1Bytes, norma43Records, norma43Text } from './testing'
 const EXTRACTO = {
   movements: [
     { amountCents: -30000, concepts: [{ first: 'TRANSF.SEPA NACIONAL', second: 'Alquiler' }] },
-    { amountCents: 170890, concepts: [{ first: 'NOMIN.TRANF.NACIONAL', second: 'Nomina' }] },
+    { amountCents: 198750, concepts: [{ first: 'NOMIN.TRANF.NACIONAL', second: 'Nomina' }] },
   ],
 }
 
