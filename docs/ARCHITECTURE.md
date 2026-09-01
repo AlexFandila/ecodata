@@ -24,7 +24,7 @@ finanzas-app/
 │   │       │   └── advisor/     # reglas de asesoría transparentes
 │   │       ├── db/              # esquema Drizzle y migraciones
 │   │       ├── http/            # rutas, auth, arranque
-│   │       └── seed/            # `pnpm seed`: datos sintéticos de desarrollo
+│   │       └── seed/            # `pnpm seed`: datos sintéticos; `--empty`, base para datos reales
 │   ├── web/                  # React + Vite PWA (mobile-first)
 │   └── mcp/                  # (Fase 3) servidor MCP de solo lectura
 ├── packages/

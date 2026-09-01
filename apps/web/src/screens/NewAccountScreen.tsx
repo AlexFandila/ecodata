@@ -1,7 +1,14 @@
 /**
- * Alta de cuenta. Cuatro campos y un IBAN opcional: `isOwn` y
- * `openingBalanceCents` los pone la API desde los valores por defecto del
- * contrato, que es justo por qué los tiene.
+ * Alta de cuenta. `isOwn` lo sigue poniendo la API desde el default del
+ * contrato, que es justo por qué lo tiene.
+ *
+ * El saldo inicial sí se pregunta, aunque también tenga default: es la base del
+ * invariante 6 —saldo = inicial + Σ movimientos—, así que dejarlo en cero
+ * cuando la cuenta no empieza en cero desplaza todos los saldos de la app en
+ * esa cantidad. Y lo que hay que escribir no es el saldo de hoy sino el
+ * **anterior al movimiento más antiguo que se vaya a importar**, que es una
+ * distinción que nadie acierta si no se la cuentan: de ahí el texto de ayuda
+ * bajo el campo, que es parte del campo y no un adorno.
  */
 import {
   ACCOUNT_PROVIDERS,
@@ -19,6 +26,7 @@ import { ApiError } from '../api/client'
 import { CONTROL_CLASS, Field } from '../components/Field'
 import { Notice, NoticeDetails } from '../components/Notice'
 import { Screen } from '../components/Screen'
+import { parseMoneyCents } from '../format/money'
 
 const PROVIDER_LABELS: Record<AccountProvider, string> = {
   unicaja: 'Unicaja',
@@ -39,12 +47,16 @@ export function NewAccountScreen() {
   const providerFieldId = useId()
   const typeFieldId = useId()
   const currencyFieldId = useId()
+  const balanceFieldId = useId()
+  const balanceHintId = useId()
   const ibanFieldId = useId()
 
   const [name, setName] = useState('')
   const [provider, setProvider] = useState<AccountProvider>('unicaja')
   const [type, setType] = useState<AccountType>('checking')
   const [currency, setCurrency] = useState<Currency>('EUR')
+  const [openingBalance, setOpeningBalance] = useState('')
+  const [balanceError, setBalanceError] = useState<string | null>(null)
   const [iban, setIban] = useState('')
 
   const create = useMutation({
@@ -58,12 +70,35 @@ export function NewAccountScreen() {
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
-    // Un IBAN en blanco es "no lo he puesto", no una cadena vacía.
-    create.mutate({ name, provider, type, currency, iban: iban.trim() === '' ? null : iban })
+
+    // Se valida al enviar y no al teclear: mientras se escribe «1.286,09», el
+    // texto pasa por «1.» y por «1.286,», que son inválidos, y un aviso que
+    // aparece y desaparece con cada pulsación es ruido, no ayuda.
+    const openingBalanceCents = parseMoneyCents(openingBalance, currency)
+    if (openingBalanceCents === null) {
+      setBalanceError(`No se entiende «${openingBalance}» como un importe.`)
+      // Que no queden dos avisos a la vez si el intento anterior falló en la API.
+      create.reset()
+      return
+    }
+    setBalanceError(null)
+
+    create.mutate({
+      name,
+      provider,
+      type,
+      currency,
+      // Un IBAN en blanco es "no lo he puesto", no una cadena vacía.
+      iban: iban.trim() === '' ? null : iban,
+      openingBalanceCents,
+    })
   }
 
   return (
     <Screen title="Nueva cuenta">
+      {balanceError !== null ? (
+        <Notice title="El saldo inicial no se entiende" detail={balanceError} />
+      ) : null}
       {create.error ? <CreateError error={create.error} /> : null}
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -119,6 +154,28 @@ export function NewAccountScreen() {
               </option>
             ))}
           </select>
+        </Field>
+
+        {/* Detrás de la divisa a propósito: el importe se lee con ella. */}
+        <Field id={balanceFieldId} label="Saldo inicial (opcional)">
+          <input
+            id={balanceFieldId}
+            value={openingBalance}
+            onChange={(event) => setOpeningBalance(event.target.value)}
+            // `text` con teclado numérico, no `type="number"`: un campo numérico
+            // no acepta la coma de forma fiable en español y normaliza su valor
+            // según el navegador, que sería meter una segunda gramática de
+            // importes justo donde hace falta tener una sola.
+            inputMode="decimal"
+            placeholder="0,00"
+            aria-describedby={balanceHintId}
+            aria-invalid={balanceError !== null}
+            className={CONTROL_CLASS}
+          />
+          <p id={balanceHintId} className="text-slate-400 text-xs">
+            El saldo justo <strong>antes</strong> del movimiento más antiguo que vayas a importar,
+            no el de hoy. Lo dice la cabecera del propio extracto. En blanco es cero.
+          </p>
         </Field>
 
         <Field id={ibanFieldId} label="IBAN (opcional)">

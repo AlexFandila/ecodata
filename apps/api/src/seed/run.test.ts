@@ -3,9 +3,18 @@
  */
 import { and, eq, isNotNull, isNull } from 'drizzle-orm'
 import { describe, expect, it } from 'vitest'
-import { accounts, goals, rules, transactions, transfers } from '../db/schema'
+import {
+  accounts,
+  categories,
+  goals,
+  INTERNAL_TRANSFER_SLUG,
+  imports,
+  rules,
+  transactions,
+  transfers,
+} from '../db/schema'
 import { createTestDb } from '../db/testing'
-import { runSeed, SEED_ACCOUNTS, SEED_GOALS, SEED_RULES } from './run'
+import { runEmptySeed, runSeed, SEED_ACCOUNTS, SEED_GOALS, SEED_RULES } from './run'
 import { SEED_MONTHS, syntheticSeed } from './synthetic'
 
 /** La misma fecha fija que en `synthetic.test.ts`: la semilla no mira el reloj. */
@@ -179,5 +188,56 @@ describe('runSeed', () => {
 
     const fondo = db.select().from(goals).where(eq(goals.name, 'Fondo de emergencia')).get()
     expect(fondo?.targetDate).toBeNull()
+  })
+})
+
+describe('runEmptySeed', () => {
+  it('deja el vocabulario y ni un solo dato', () => {
+    const db = createTestDb()
+
+    const outcome = runEmptySeed(db)
+
+    expect(outcome.rules).toEqual({ created: SEED_RULES.length, existing: 0 })
+    expect(outcome.categories.created).toBeGreaterThan(0)
+    expect(db.select().from(categories).all().length).toBe(outcome.categories.created)
+    expect(db.select().from(rules).all()).toHaveLength(SEED_RULES.length)
+
+    // Lo que tiene que estar vacío es justo lo que pone el usuario con sus
+    // propios extractos.
+    expect(db.select().from(accounts).all()).toHaveLength(0)
+    expect(db.select().from(transactions).all()).toHaveLength(0)
+    expect(db.select().from(imports).all()).toHaveLength(0)
+    expect(db.select().from(transfers).all()).toHaveLength(0)
+    expect(db.select().from(goals).all()).toHaveLength(0)
+  })
+
+  it('vaciar dos veces deja exactamente la misma base', () => {
+    const db = createTestDb()
+
+    runEmptySeed(db)
+    const second = runEmptySeed(db)
+
+    expect(second.categories.created).toBe(0)
+    expect(second.rules).toEqual({ created: 0, existing: SEED_RULES.length })
+    expect(db.select().from(rules).all()).toHaveLength(SEED_RULES.length)
+    expect(db.select().from(accounts).all()).toHaveLength(0)
+  })
+
+  /**
+   * La categoría del invariante 3 tiene que existir aunque no se siembre ningún
+   * movimiento: sin ella, el primer traspaso real que empareje el matcher no
+   * tendría con qué marcar sus dos patas.
+   */
+  it('siembra la categoría de transferencia interna', () => {
+    const db = createTestDb()
+
+    runEmptySeed(db)
+
+    const interna = db
+      .select()
+      .from(categories)
+      .where(eq(categories.slug, INTERNAL_TRANSFER_SLUG))
+      .get()
+    expect(interna?.kind).toBe('internal')
   })
 })

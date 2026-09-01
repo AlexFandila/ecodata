@@ -109,6 +109,23 @@ type SeedRule = {
  * Ninguna casa con los traspasos internos ni con el bizum, el adeudo y el pago
  * QR: eso es deliberado. Una base de desarrollo en la que todo está
  * categorizado no sirve para construir la bandeja de «sin categorizar».
+ *
+ * Los patrones son **sintéticos**: están escritos contra el extracto que genera
+ * `synthetic.ts`, no contra lo que emite un banco. Sobre datos reales unos
+ * cuantos no casarán nunca (`AGUA EJEMPLO`, `Tienda Online`) y otros sí —
+ * `ALQUILER`, `GASOLINERA`, `FARMACIA` o `COMISION MANTENIMIENTO` son palabras
+ * que aparecen tal cual en los extractos españoles, y `contains` normaliza
+ * acentos y mayúsculas (ADR-014)—. Que casen no rompe nada: la categoría que
+ * ponen es la correcta y el invariante 7 permite recategorizarlas. Pero hay que
+ * saberlo, porque si no aparecen movimientos categorizados por reglas que uno
+ * no recuerda haber escrito.
+ *
+ * Lo que **no** se hace nunca es escribir aquí una regla sacada de un extracto
+ * propio: un patrón copiado de un movimiento real es un dato real, y esto va a
+ * git (CLAUDE.md, «Datos sensibles»). Las reglas de verdad se crean desde la
+ * app, que escribe en la base git-ignored. `runEmptySeed` siembra estas
+ * igualmente porque son el esqueleto del motor y lo que no case se queda en la
+ * bandeja, que es donde tiene que estar.
  */
 export const SEED_RULES: readonly SeedRule[] = [
   { priority: 10, field: 'description', pattern: 'NOMINA', slug: 'salary' },
@@ -199,6 +216,42 @@ export type SeedOutcome = {
 export type SeedOptions = {
   /** Último día sembrado. El CLI pasa hoy; los tests, una fecha fija. */
   readonly endDate: string
+}
+
+/**
+ * Lo que deja una base vacía. Son los dos recuentos de `SeedOutcome` que siguen
+ * teniendo sentido cuando no se siembra contenido: de los demás no es que valgan
+ * cero, es que no se ha ejecutado la etapa que los produce.
+ */
+export type EmptySeedOutcome = Pick<SeedOutcome, 'categories' | 'rules'>
+
+/**
+ * Deja la base lista para datos **reales**: el vocabulario, y nada de contenido.
+ *
+ * Es lo que hace falta cuando se deja de desarrollar contra datos inventados y
+ * se empiezan a importar los extractos de verdad: `runSeed` no vale, porque
+ * mezclaría sus dos cuentas y sus tres meses sintéticos con lo que traiga el
+ * banco, y distinguir después unos de otros es justo el lío que se quiere
+ * evitar.
+ *
+ * Categorías y reglas sí, porque no son «datos» sino vocabulario: las
+ * categorías las necesita el propio sistema —el invariante 3 marca las dos
+ * patas de un traspaso con el slug `internal_transfer`— y las reglas son el
+ * punto de partida del motor de categorización. Cuentas, movimientos,
+ * importaciones, traspasos y objetivos no: los pone el usuario con sus propios
+ * ficheros.
+ *
+ * Idempotente por lo mismo que `runSeed`: las categorías por slug y las reglas
+ * por su terna (campo, tipo, patrón).
+ */
+export function runEmptySeed(db: Db): EmptySeedOutcome {
+  const categoriesOutcome = seedCategories(db)
+  const rulesOutcome = ensureRules(db)
+
+  return {
+    categories: { created: categoriesOutcome.inserted, existing: categoriesOutcome.existing },
+    rules: rulesOutcome,
+  }
 }
 
 // ---------------------------------------------------------------------------

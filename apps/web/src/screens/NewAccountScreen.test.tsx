@@ -31,7 +31,13 @@ function stubFetch(response: () => Response) {
 }
 
 describe('NewAccountScreen', () => {
-  it('manda solo los campos del formulario y deja los defaults a la API', async () => {
+  /** El cuerpo de la única llamada que la pantalla haya hecho a la API. */
+  function enviado(fetchMock: ReturnType<typeof stubFetch>): unknown {
+    const [, init] = fetchMock.mock.calls[0] ?? []
+    return JSON.parse(String(init?.body))
+  }
+
+  it('manda los campos del formulario y deja a la API solo el default de isOwn', async () => {
     const fetchMock = stubFetch(() => Response.json(CREADA, { status: 201 }))
     const user = userEvent.setup()
     renderWithProviders(<NewAccountScreen />)
@@ -41,15 +47,43 @@ describe('NewAccountScreen', () => {
     await user.selectOptions(screen.getByLabelText('Tipo'), 'Tarjeta')
     await user.click(screen.getByRole('button', { name: 'Crear cuenta' }))
 
-    const [, init] = fetchMock.mock.calls[0] ?? []
-    expect(JSON.parse(String(init?.body))).toEqual({
+    expect(enviado(fetchMock)).toEqual({
       name: 'Cuenta de prueba',
       provider: 'revolut',
       type: 'card',
       currency: 'EUR',
       // En blanco es "no lo he puesto", no cadena vacía.
       iban: null,
+      // Un saldo en blanco es un cero dicho a propósito, no un campo sin poner.
+      openingBalanceCents: 0,
     })
+  })
+
+  it('convierte el saldo inicial a céntimos', async () => {
+    const fetchMock = stubFetch(() => Response.json(CREADA, { status: 201 }))
+    const user = userEvent.setup()
+    renderWithProviders(<NewAccountScreen />)
+
+    await user.type(screen.getByLabelText('Nombre'), 'Cuenta con saldo')
+    await user.type(screen.getByLabelText('Saldo inicial (opcional)'), '1.286,09')
+    await user.click(screen.getByRole('button', { name: 'Crear cuenta' }))
+
+    expect(enviado(fetchMock)).toMatchObject({ openingBalanceCents: 128609 })
+  })
+
+  it('un saldo que no se entiende se avisa y no llega a la API', async () => {
+    const fetchMock = stubFetch(() => Response.json(CREADA, { status: 201 }))
+    const user = userEvent.setup()
+    renderWithProviders(<NewAccountScreen />)
+
+    await user.type(screen.getByLabelText('Nombre'), 'Cuenta rara')
+    await user.type(screen.getByLabelText('Saldo inicial (opcional)'), 'mil euros')
+    await user.click(screen.getByRole('button', { name: 'Crear cuenta' }))
+
+    const aviso = await screen.findByRole('alert')
+    expect(aviso).toHaveTextContent('El saldo inicial no se entiende')
+    // Lo que importa: el fallo de formato se para aquí y no gasta una llamada.
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('pinta el detalle del campo que la API rechaza', async () => {

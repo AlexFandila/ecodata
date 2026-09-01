@@ -137,6 +137,27 @@ describe('ImportScreen · el formato', () => {
     await waitFor(() => expect(screen.getByText('Importado')).toBeInTheDocument())
     expect(enviado().get('source')).toBe('norma43')
   })
+
+  /**
+   * El `accept` no valida nada —de eso se encarga el adaptador—, pero en el
+   * móvil decide qué ficheros se pueden ni siquiera elegir. Unicaja exporta
+   * `.csb`, así que sin él el cuaderno 43 sale agrisado en el selector.
+   */
+  it('sugiere al selector de archivos las extensiones del formato elegido', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<ImportScreen />)
+
+    await screen.findByLabelText('Cuenta de destino')
+    const fichero = screen.getByLabelText('Fichero')
+    const formato = screen.getByLabelText('Formato del fichero')
+
+    expect(formato).toHaveValue('norma43')
+    expect(fichero).toHaveAttribute('accept', expect.stringContaining('.csb'))
+    expect(fichero).toHaveAttribute('accept', expect.stringContaining('.n43'))
+
+    await user.selectOptions(formato, 'CSV de Revolut')
+    expect(fichero).toHaveAttribute('accept', '.csv,text/csv')
+  })
 })
 
 describe('ImportScreen · los errores', () => {

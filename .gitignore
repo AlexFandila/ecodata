@@ -17,6 +17,16 @@ coverage/
 # Datos reales del usuario — NUNCA en git
 data/*
 !data/.gitkeep
+# Extractos bancarios caídos fuera de `data/`, que es lo que pasa cuando se
+# descarga uno y se arrastra al sitio equivocado. Hace falta decirlo aparte
+# porque el hook pre-commit **no** los cazaría: busca IBANes (`ES` + 22 dígitos)
+# y un cuaderno 43 trae entidad, oficina y cuenta por separado, sin prefijo de
+# país. Se colaría por las dos defensas a la vez.
+*.csb
+*.n43
+*.q43
+*.c43
+*.aeb
 *.db
 *.db-journal
 *.db-wal

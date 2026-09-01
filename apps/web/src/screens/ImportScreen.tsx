@@ -30,6 +30,25 @@ const SOURCE_LABELS: Record<ImportSource, string> = {
   revolut_csv: 'CSV de Revolut',
 }
 
+/**
+ * Qué sugerirle al selector de archivos según el formato ya elegido.
+ *
+ * Es una sugerencia y no una validación —quien decide si el fichero es lo que
+ * dice ser es el adaptador, leyendo el contenido—, pero en el móvil manda: el
+ * selector de Android esconde lo que no encaja, y **Unicaja llama `.csb` a su
+ * cuaderno 43**, por el antiguo Consejo Superior Bancario. Con el `.n43` de la
+ * norma a secas, el fichero que exporta el banco no se puede ni elegir.
+ *
+ * Van las extensiones de los demás bancos que emiten el mismo cuaderno, porque
+ * el adaptador es del formato y no de la casa (ADR-010), y va también
+ * `text/plain` porque `.csb` no tiene mimetype registrado y hay selectores que
+ * solo miran el mimetype.
+ */
+const SOURCE_ACCEPT: Record<ImportSource, string> = {
+  norma43: '.csb,.n43,.q43,.c43,.aeb,.txt,text/plain',
+  revolut_csv: '.csv,text/csv',
+}
+
 /** Formato que suele traer cada proveedor. `manual` no exporta nada conocido. */
 const SUGGESTED_SOURCE: Record<AccountProvider, ImportSource | null> = {
   unicaja: 'norma43',
@@ -213,7 +232,7 @@ export function ImportScreen() {
           <input
             id={fileFieldId}
             type="file"
-            accept=".n43,.csv,.txt,text/csv,text/plain"
+            accept={SOURCE_ACCEPT[source]}
             onChange={(event) => setFile(event.target.files?.[0] ?? null)}
             className="rounded-xl bg-slate-800 p-3 text-slate-100 text-sm"
           />
